@@ -224,6 +224,9 @@ table.data tr:last-child td{border-bottom:0}
 /* bottom nav (mobile) */
 .bnav{position:fixed;bottom:0;left:0;right:0;z-index:50;background:var(--card);border-top:1px solid var(--border);display:flex;padding:6px 4px calc(6px + env(safe-area-inset-bottom));box-shadow:0 -4px 20px rgba(6,60,54,.07)}
 @media(min-width:900px){.bnav{display:none}}
+/* App khách không có sidebar → luôn giữ thanh nav dưới ở mọi kích thước */
+@media(min-width:900px){.bnav.always{display:flex}.main.padbnav{padding-bottom:74px}}
+@media(min-width:900px){.bnav.always{max-width:520px;left:50%;transform:translateX(-50%);border-radius:16px 16px 0 0;border:1px solid var(--border);border-bottom:0}}
 .bnav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:5px 2px;color:var(--muted);font-size:10.5px;font-weight:600;position:relative}
 .bnav button i{font-size:22px}
 .bnav button.on{color:var(--g)}
@@ -2461,7 +2464,7 @@ function CustomerApp({cust,tables,menu,orders,setOrders,promos,customers,setCust
   const t=TITLES[view];
   return (
     <div className="app">
-      <main className="main">
+      <main className="main padbnav">
         <header className="topbar">
           <div><h1>{t[0]}</h1><div className="sub">Xin chào, {cust.name} · {t[1]}</div></div>
           <div className="spacer"/>
@@ -2476,7 +2479,7 @@ function CustomerApp({cust,tables,menu,orders,setOrders,promos,customers,setCust
           {view==='fb'&&<CustFeedback cust={cust} setFeedback={setFeedback} flash={flash}/>}
         </div>
       </main>
-      <nav className="bnav">
+      <nav className="bnav always">
         {NAV.map(n=>(<button key={n.id} className={view===n.id?'on':''} onClick={()=>setView(n.id)}>
           <i className={'ti '+n.icon}/>{n.label}{n.badge>0&&<span className="bd">{n.badge}</span>}</button>))}
       </nav>
