@@ -318,7 +318,9 @@ function usePersist(key,initial){
 */
 const SB_URL='https://ltmlueqkajqmduoqghdf.supabase.co';
 const SB_KEY='sb_publishable_74Lm6cc0CkoOOzy3A4IRrQ_BX0jHQcg';
-const CLOUD_ARRAYS={orders:'ps_orders',feedback:'ps_feedback',customers:'ps_customers',broadcasts:'ps_broadcasts',alerts:'ps_alerts'};
+const CLOUD_ARRAYS={orders:'ps_orders',feedback:'ps_feedback',customers:'ps_customers',broadcasts:'ps_broadcasts',alerts:'ps_alerts',
+  tours:'ps_tours',signups:'ps_signups',results:'ps_results',bookings:'ps_bookings',
+  sessions:'ps_sessions',maint:'ps_maint',growth:'ps_growth'};
 const Cloud={
   sb:null,enabled:false,status:'off',onStatus:null,
   init(){
@@ -395,7 +397,8 @@ const SEED_STAFF=[
   {id:'u_cuong',name:'Lê Cường',     role:'staff',   rate:22000},
   {id:'u_dung',name:'Phạm Dũng',     role:'staff',   rate:22000},
 ];
-const ROLES={manager:{label:'Quản lý',icon:'🧑‍💼'},counter:{label:'Nhân viên quầy',icon:'🧾'},staff:{label:'Nhân viên phục vụ',icon:'🎱'}};
+const ROLES={manager:{label:'Quản lý',icon:'🧑‍💼'},organizer:{label:'Tổ chức giải',icon:'🏆'},counter:{label:'Nhân viên quầy',icon:'🧾'},staff:{label:'Nhân viên phục vụ',icon:'🎱'}};
+const ROLE_KEYS=['manager','organizer','counter','staff'];
 const roleLabel=r=>(ROLES[r]||ROLES.staff).label;
 const SEED_TABLES=(()=>{
   const a=[];
@@ -424,12 +427,16 @@ const ALERT_KINDS={
 const alertExpired=a=>{const k=ALERT_KINDS[a.kind];return !!(k&&k.ttl&&a.status==='open'&&Date.now()-a.ts>k.ttl);};
 const alertFor=(a,role)=>{const k=ALERT_KINDS[a.kind];return !k||!k.to||k.to.indexOf(role)>=0;};
 const FB_RATING={good:{label:'Hài lòng',icon:'😃',chip:'gr'},ok:{label:'Bình thường',icon:'😐',chip:'a'},bad:{label:'Chưa hài lòng',icon:'😞',chip:'r'}};
+// Món có giá (QL sửa ở Quản lý → Khác → Thực đơn)
 const SEED_MENU=[
-  {grp:'Nước', items:['Trà đá','Trà chanh','Nước suối','Sting','Red Bull','Coca','Pepsi','Cà phê đen','Cà phê sữa','Bia Hà Nội','Bia Tiger','Nước cam']},
-  {grp:'Đồ ăn',items:['Mì tôm úp','Mì xào bò','Hướng dương','Bò khô','Xúc xích rán','Đậu phộng','Bim bim']},
-  {grp:'Thuốc lá',items:['Thăng Long','Vinataba','555']},
-  {grp:'Khác',items:['Lơ (phấn)','Khăn lạnh','Găng bi-a']},
+  {grp:'Nước', items:[{name:'Trà đá',price:3000},{name:'Trà chanh',price:15000},{name:'Nước suối',price:10000},{name:'Sting',price:15000},{name:'Red Bull',price:20000},{name:'Coca',price:15000},{name:'Pepsi',price:15000},{name:'Cà phê đen',price:20000},{name:'Cà phê sữa',price:25000},{name:'Bia Hà Nội',price:20000},{name:'Bia Tiger',price:25000},{name:'Nước cam',price:25000}]},
+  {grp:'Đồ ăn',items:[{name:'Mì tôm úp',price:20000},{name:'Mì xào bò',price:40000},{name:'Hướng dương',price:15000},{name:'Bò khô',price:30000},{name:'Xúc xích rán',price:25000},{name:'Đậu phộng',price:15000},{name:'Bim bim',price:10000}]},
+  {grp:'Thuốc lá',items:[{name:'Thăng Long',price:25000},{name:'Vinataba',price:28000},{name:'555',price:35000}]},
+  {grp:'Khác',items:[{name:'Lơ (phấn)',price:10000},{name:'Khăn lạnh',price:5000},{name:'Găng bi-a',price:30000}]},
 ];
+// Cũ: items là mảng chuỗi → chuẩn hoá thành {name,price}
+const normMenu=m=>(m||[]).map(g=>({...g,items:(g.items||[]).map(it=>typeof it==='string'?{name:it,price:0}:it)}));
+const priceOfItem=(menu,name)=>{for(const g of (menu||[])){const f=(g.items||[]).find(i=>i.name===name);if(f)return Number(f.price)||0;}return 0;};
 // đầu việc theo ca — mẫu
 const SEED_SHIFT_TASKS={
   morning:[
@@ -540,6 +547,46 @@ const SEED_PENALTY=[
   {id:uid(),name:'Sai order / thái độ với khách',amount:30000},
   {id:uid(),name:'Lệch quỹ cuối ca',amount:50000},
 ];
+// Bảo trì lặp theo chu kỳ (everyDays). Làm xong → tự đặt hạn lần sau.
+const addDays=(d,n)=>{const x=new Date(d+'T00:00');x.setDate(x.getDate()+n);return x.getFullYear()+'-'+pad(x.getMonth()+1)+'-'+pad(x.getDate());};
+const daysLeft=(due)=>Math.round((new Date(due+'T00:00')-new Date(today()+'T00:00'))/86400000);
+const SEED_MAINT=[
+  {id:uid(),name:'Thay nỉ bàn',note:'Thay nỉ toàn bộ bàn (hoặc bàn xuống cấp trước)',everyDays:180,due:addDays(today(),45),lastDone:''},
+  {id:uid(),name:'Bảo dưỡng gậy (cơ)',note:'Chuốt đầu cơ, thay lơ đầu, kiểm tra cơ cong/nứt',everyDays:30,due:addDays(today(),7),lastDone:''},
+  {id:uid(),name:'Chải & hút bụi mặt nỉ',note:'Chải 1 chiều toàn bộ bàn',everyDays:7,due:addDays(today(),2),lastDone:''},
+  {id:uid(),name:'Lau & kiểm tra bi',note:'Lau bi, loại bi nứt/mờ',everyDays:14,due:addDays(today(),5),lastDone:''},
+  {id:uid(),name:'Kiểm tra đèn bàn',note:'Thay bóng hỏng, chỉnh độ cao đèn',everyDays:60,due:addDays(today(),20),lastDone:''},
+  {id:uid(),name:'Cân chỉnh mặt bàn (thăng bằng)',note:'Kiểm tra bàn có bị nghiêng/lún',everyDays:365,due:addDays(today(),120),lastDone:''},
+];
+// To-do tăng doanh số (chuyển từ chương đào tạo cũ) — có subtask tick được
+const SEED_GROWTH=[
+  {id:uid(),title:'Tăng doanh thu tiền bàn',done:false,subs:[
+    {id:uid(),text:'Áp giá cao điểm tối & cuối tuần',done:false},
+    {id:uid(),text:'Ưu đãi giờ thấp điểm (sáng/đầu tuần) để lấp bàn trống',done:false},
+    {id:uid(),text:'Combo "giờ + đồ uống" trọn gói theo nhóm',done:false},
+    {id:uid(),text:'Thẻ giờ trả trước (nạp 500k tặng 50k)',done:false},
+    {id:uid(),text:'Nhận đặt bàn trước cho khung giờ đông',done:false},
+  ]},
+  {id:uid(),title:'Tăng doanh thu đồ uống & dịch vụ',done:false,subs:[
+    {id:uid(),text:'Nhân viên chủ động mời nước khi mở bàn (upsell)',done:false},
+    {id:uid(),text:'Combo nước + đồ ăn nhẹ giá tốt',done:false},
+    {id:uid(),text:'Menu rõ ràng, đánh dấu món best-seller',done:false},
+    {id:uid(),text:'Đẩy mạnh gọi món ăn ngoài (khách ngồi lâu hơn)',done:false},
+  ]},
+  {id:uid(),title:'Giữ chân khách & marketing',done:false,subs:[
+    {id:uid(),text:'Tích điểm đổi giờ/đồ uống',done:false},
+    {id:uid(),text:'Chăm sóc khách VIP (nhớ tên, nhớ mặt)',done:false},
+    {id:uid(),text:'Tổ chức giải đấu định kỳ',done:false},
+    {id:uid(),text:'Nhắn tin khuyến mãi/giải đấu cho khách quen',done:false},
+    {id:uid(),text:'Đăng highlight trận hay lên mạng xã hội',done:false},
+  ]},
+  {id:uid(),title:'Quản trị chi phí',done:false,subs:[
+    {id:uid(),text:'Theo dõi tồn kho, tránh thất thoát & hết hàng',done:false},
+    {id:uid(),text:'Xếp ca theo lưu lượng khách',done:false},
+    {id:uid(),text:'Bảo trì bàn/nỉ định kỳ',done:false},
+    {id:uid(),text:'Đối chiếu quỹ cuối ca chặt chẽ',done:false},
+  ]},
+];
 const SEED_OUTFOOD=[
   {id:uid(),name:'Cơm rang / cơm bình dân',phone:'0987000111'},
   {id:uid(),name:'Bún / phở gánh',phone:'0987000222'},
@@ -599,6 +646,12 @@ function App(){
   const [endTasks,setEndTasks]=usePersist('ps.endTasks',SEED_ENDTASKS);
   const [broadcasts,setBroadcasts]=usePersist('ps.broadcasts',[]);
   const [alerts,setAlerts]=usePersist('ps.alerts',[]);
+  const [signups,setSignups]=usePersist('ps.signups',[]);
+  const [results,setResults]=usePersist('ps.results',[]);
+  const [bookings,setBookings]=usePersist('ps.bookings',[]);
+  const [sessions,setSessions]=usePersist('ps.sessions',[]);
+  const [maint,setMaint]=usePersist('ps.maint',SEED_MAINT);
+  const [growth,setGrowth]=usePersist('ps.growth',SEED_GROWTH);
   const [fbSeen,setFbSeen]=usePersist('ps.fbSeen',0);
   const [meId,setMeId]=usePersist('ps.me',null);
   const [dark,setDark]=useState(()=>store.get('ps.dark',false)===true||localStorage.getItem('ps.dark')==='1');
@@ -609,7 +662,7 @@ function App(){
   useEffect(()=>{document.body.classList.toggle('dark',dark);store.set('ps.dark',dark);},[dark]);
   // Cập nhật dữ liệu mẫu khi cấu trúc đổi (prototype): giữ dữ liệu vận hành & chỉnh sửa của người dùng
   useEffect(()=>{
-    const V=6;
+    const V=8;
     const cur=store.get('ps.seedVer',1);
     if(cur<V){
       if(cur<2){ // bỏ Phăng
@@ -618,7 +671,7 @@ function App(){
       // v3: bổ sung chương đào tạo mới (không ghi đè bản đã sửa), thêm field mới cho khách & nhân viên
       setTraining(prev=>{const titles=prev.map(c=>c.title);const add=SEED_TRAINING.filter(c=>!titles.includes(c.title));return add.length?[...prev,...add]:prev;});
       setCustomers(prev=>prev.map(c=>({vip:false,games:[],photo:'',note:'',...c})));
-      setStaff(prev=>prev.map(s=>({rate:22000,...s,role:['manager','counter','staff'].includes(s.role)?s.role:'staff'})));
+      setStaff(prev=>prev.map(s=>({rate:22000,...s,role:ROLE_KEYS.includes(s.role)?s.role:'staff'})));
       // v4: bàn có loại + giá, nâng lên 20 bàn (làm mới nếu bàn cũ chưa có giá)
       if(cur<4){ if(store.get('ps.tables',[]).some(t=>t.price==null)) setTables(SEED_TABLES); }
       // v5: khuyến mãi có khung giờ — thêm ưu đãi 8h–15h, bỏ seed "Giờ vàng buổi trưa" cũ (đã bị thay)
@@ -628,6 +681,13 @@ function App(){
       });
       // v6: bỏ phần kiểm tra nhanh ở chương "Hướng tăng doanh số" (chỉ để tham khảo)
       if(cur<6) setTraining(prev=>prev.map(c=>c.title==='Hướng tăng doanh số (Quản lý)'?{...c,quiz:[]}:c));
+      // v7: thêm tài khoản Tổ chức giải mẫu (nếu chưa có ai giữ vai này)
+      if(cur<7) setStaff(prev=>prev.some(s=>s.role==='organizer')?prev:[...prev,{id:'u_'+uid(),name:'Đỗ Minh Giải',role:'organizer',rate:25000}]);
+      // v8: món có giá — chuyển items từ chuỗi sang {name,price}; lấy giá seed nếu trùng tên
+      if(cur<8) setMenu(prev=>{
+        const seedPrice=(n)=>priceOfItem(SEED_MENU,n);
+        return (prev||[]).map(g=>({...g,items:(g.items||[]).map(it=>typeof it==='string'?{name:it,price:seedPrice(it)}:it)}));
+      });
       store.set('ps.seedVer',V);
     }
   },[]);
@@ -645,13 +705,20 @@ function App(){
   const setCustomersC=cloudArr(setCustomers,'ps_customers');
   const setBroadcastsC=cloudArr(setBroadcasts,'ps_broadcasts');
   const setAlertsC=cloudArr(setAlerts,'ps_alerts');
+  const setToursC=cloudArr(setTours,'ps_tours');
+  const setSignupsC=cloudArr(setSignups,'ps_signups');
+  const setResultsC=cloudArr(setResults,'ps_results');
+  const setBookingsC=cloudArr(setBookings,'ps_bookings');
+  const setSessionsC=cloudArr(setSessions,'ps_sessions');
+  const setMaintC=cloudArr(setMaint,'ps_maint');
+  const setGrowthC=cloudArr(setGrowth,'ps_growth');
   const setMenuC=cloudKv(setMenu,'menu');
   const setTablesC=cloudKv(setTables,'tables');
   const setPromosC=cloudKv(setPromos,'promos');
 
   // Giữ giá trị mới nhất cho bước seed cloud (tránh dùng giá trị cũ lúc mount)
   const latest=useRef({});
-  latest.current={menu,tables,promos,customers};
+  latest.current={menu,tables,promos,customers,tours,maint,growth};
 
   // Kết nối cloud: tải dữ liệu chung + lắng nghe realtime. Lỗi/chưa chạy SQL → chạy cục bộ.
   useEffect(()=>{
@@ -668,9 +735,17 @@ function App(){
         setFeedback(d.feedback||[]);
         setBroadcasts(d.broadcasts||[]);
         setAlerts(d.alerts||[]);
+        setSignups(d.signups||[]);
+        setResults(d.results||[]);
+        setBookings(d.bookings||[]);
+        setSessions(d.sessions||[]);
+        if(d.maint&&d.maint.length)setMaint(d.maint); else (L.maint||[]).forEach(x=>Cloud.upsertRow('ps_maint',x));
+        if(d.growth&&d.growth.length)setGrowth(d.growth); else (L.growth||[]).forEach(x=>Cloud.upsertRow('ps_growth',x));
         if(d.customers&&d.customers.length)setCustomers(d.customers);
         else (L.customers||[]).forEach(c=>Cloud.upsertRow('ps_customers',c));
-        if(d.kv.menu)setMenu(d.kv.menu); else Cloud.setKv('menu',L.menu);
+        if(d.tours&&d.tours.length)setTours(d.tours);
+        else (L.tours||[]).forEach(t=>Cloud.upsertRow('ps_tours',t));
+        if(d.kv.menu)setMenu(normMenu(d.kv.menu)); else Cloud.setKv('menu',L.menu);
         if(d.kv.tables)setTables(d.kv.tables); else Cloud.setKv('tables',L.tables);
         if(d.kv.promos)setPromos(d.kv.promos); else Cloud.setKv('promos',L.promos);
         Cloud.setStatus('synced');
@@ -679,9 +754,16 @@ function App(){
         subs.push(Cloud.subscribe('ps_customers',p=>applyRealtime(setCustomers,p)));
         subs.push(Cloud.subscribe('ps_broadcasts',p=>applyRealtime(setBroadcasts,p)));
         subs.push(Cloud.subscribe('ps_alerts',p=>applyRealtime(setAlerts,p)));
+        subs.push(Cloud.subscribe('ps_tours',p=>applyRealtime(setTours,p)));
+        subs.push(Cloud.subscribe('ps_signups',p=>applyRealtime(setSignups,p)));
+        subs.push(Cloud.subscribe('ps_results',p=>applyRealtime(setResults,p)));
+        subs.push(Cloud.subscribe('ps_bookings',p=>applyRealtime(setBookings,p)));
+        subs.push(Cloud.subscribe('ps_sessions',p=>applyRealtime(setSessions,p)));
+        subs.push(Cloud.subscribe('ps_maint',p=>applyRealtime(setMaint,p)));
+        subs.push(Cloud.subscribe('ps_growth',p=>applyRealtime(setGrowth,p)));
         subs.push(Cloud.sb.channel('rt_ps_kv').on('postgres_changes',{event:'*',schema:'public',table:'ps_kv'},p=>{
           const row=p.new; if(!row||!row.k)return;
-          if(row.k==='menu')setMenu(row.v); else if(row.k==='tables')setTables(row.v); else if(row.k==='promos')setPromos(row.v);
+          if(row.k==='menu')setMenu(normMenu(row.v)); else if(row.k==='tables')setTables(row.v); else if(row.k==='promos')setPromos(row.v);
         }).subscribe());
       }catch(e){ Cloud.enabled=false; Cloud.setStatus('error'); }
     })();
@@ -698,19 +780,21 @@ function App(){
   const pendingCount=orders.filter(o=>o.status==='pending').length;
   const myRole=isCounter?'counter':'staff';
   const openAlerts=alerts.filter(a=>a.status==='open'&&!alertExpired(a)&&alertFor(a,myRole)).length;
+  const newBookings=bookings.filter(b=>b.status==='pending').length; // đặt bàn chờ duyệt
+  const openTables=sessions.filter(x=>!x.endTs).length; // bàn đang chơi
   const newFb=feedback.filter(f=>f.ts>(fbSeen||0)).length; // góp ý mới cho quản lý
 
   const NAV_BY_ROLE={
-    manager:['manage','tasks','train','attend','cust'],
-    staff:['order','tasks','train','attend','cust'],
-    counter:['counter','inventory','cust','attend','train'],
+    manager:['manage','desk','tasks','attend','cust'],
+    staff:['desk','order','tasks','train','attend'],
+    counter:['counter','desk','inventory','cust','attend'],
+    organizer:['tours','cust','attend','train'],
   };
-  const DEFAULT_VIEW={manager:'manage',counter:'counter',staff:'order'};
+  const DEFAULT_VIEW={manager:'manage',counter:'counter',staff:'desk',organizer:'tours'};
   // Về màn mặc định đúng vai khi đăng nhập
   useEffect(()=>{
     if(!meId)return; const m=staff.find(s=>s.id===meId); if(!m)return;
-    const allowed=NAV_BY_ROLE[m.role]||NAV_BY_ROLE.staff;
-    setView(v=>allowed.includes(v)?v:(DEFAULT_VIEW[m.role]||'order'));
+    setView(DEFAULT_VIEW[m.role]||'order'); // đăng nhập/mở lại → về đúng màn mặc định của vai
   },[meId]);
   // Tự xoá yêu cầu hết hạn (vd xếp bi quá 1 phút → coi như xong)
   useEffect(()=>{
@@ -727,7 +811,8 @@ function App(){
     }
     return <CustomerApp cust={custMe} tables={tables} menu={menu} orders={orders} setOrders={setOrdersC}
       promos={promos} customers={customers} setCustomers={setCustomersC} feedback={feedback} setFeedback={setFeedbackC}
-      alerts={alerts} setAlerts={setAlertsC}
+      alerts={alerts} setAlerts={setAlertsC} tours={tours} signups={signups} setSignups={setSignupsC}
+      bookings={bookings} setBookings={setBookingsC}
       broadcasts={broadcasts} cloud={cloud} dark={dark} setDark={setDark} onLogout={()=>setMeId(null)} flash={flash}/>;
   }
   if(!me) return <Login staff={staff} onPick={setMeId} customers={customers} setCustomers={setCustomersC} onCust={setMeId} cloud={cloud}/>;
@@ -735,26 +820,31 @@ function App(){
   const shared={me,isManager,isCounter,staff,setStaff,tables,setTables:setTablesC,menu,setMenu:setMenuC,
     orders,setOrders:setOrdersC,shiftTasks,setShiftTasks,
     taskLog,setTaskLog,training,setTraining,trainProg,setTrainProg,schedule,setSchedule,attend,setAttend,
-    customers,setCustomers:setCustomersC,promos,setPromos:setPromosC,tours,setTours,
+    customers,setCustomers:setCustomersC,promos,setPromos:setPromosC,tours,setTours:setToursC,
+    signups,setSignups:setSignupsC,results,setResults:setResultsC,bookings,setBookings:setBookingsC,
+    sessions,setSessions:setSessionsC,maint,setMaint:setMaintC,growth,setGrowth:setGrowthC,
     feedback,setFeedback:setFeedbackC,penaltyRules,setPenaltyRules,
     violations,setViolations,outfood,setOutfood,inventory,setInventory,endTasks,setEndTasks,
     broadcasts,setBroadcasts:setBroadcastsC,alerts,setAlerts:setAlertsC,fbSeen,setFbSeen,cloud,flash};
 
   const NAV_DEF={
-    order:{label:'Báo món',icon:'ti-glass-full',badge:pendingCount+openAlerts},
-    counter:{label:'Quầy',icon:'ti-cash-register',badge:pendingCount+openAlerts},
+    order:{label:'Báo món',icon:'ti-glass-full',badge:pendingCount+openAlerts+newBookings},
+    counter:{label:'Quầy',icon:'ti-cash-register',badge:pendingCount+openAlerts+newBookings},
     inventory:{label:'Kiểm kho',icon:'ti-box-seam'},
     tasks:{label:'Đầu việc',icon:'ti-checklist'},
     train:{label:'Đào tạo',icon:'ti-school'},
     attend:{label:'Chấm công',icon:'ti-clock-hour-4'},
     cust:{label:'Khách',icon:'ti-users',badge:isManager?newFb:0},
     manage:{label:'Quản lý',icon:'ti-briefcase'},
+    tours:{label:'Giải đấu',icon:'ti-trophy'},
+    desk:{label:'Bàn',icon:'ti-layout-grid',badge:openTables},
   };
   const navItems=(NAV_BY_ROLE[me.role]||NAV_BY_ROLE.staff).map(id=>({id,...NAV_DEF[id]}));
-  const TITLES={order:['Báo món','Gửi order từ bàn về quầy'],counter:['Quầy phục vụ','Order các bàn & gọi món ngoài'],
+  const TITLES={order:['Báo món','Gửi order từ bàn về quầy'],counter:['Quầy phục vụ','Order · yêu cầu · đặt bàn'],
     inventory:['Kiểm kho','Đếm & theo dõi tồn hàng'],tasks:['Đầu việc theo ca','Checklist việc quán sáng / tối'],
     train:['Đào tạo nhân viên','Học cách quán vận hành'],attend:['Chấm công','Lịch ca · giờ làm · lỗi phạt'],
-    cust:['Khách hàng','Tích điểm · VIP · feedback'],manage:['Quản lý','KM · Giải đấu · Lỗi lương · Danh mục']};
+    cust:['Khách hàng','Tích điểm · VIP · feedback'],manage:['Quản lý','Sổ sách · doanh số · KM · lương'],
+    tours:['Tổ chức giải','Lịch giải · đăng ký · kết quả'],desk:['Bàn','Mở / tắt bàn & chốt bill']};
   const t=TITLES[view]||['',''];
 
   return (
@@ -795,6 +885,8 @@ function App(){
           {view==='attend'&&<AttendView s={shared}/>}
           {view==='cust'&&<CustView s={shared}/>}
           {view==='manage'&&isManager&&<ManageView s={shared}/>}
+          {view==='tours'&&<OrganizerView s={shared}/>}
+          {view==='desk'&&<TablesView s={shared}/>}
         </div>
       </main>
 
@@ -864,10 +956,11 @@ function Login({staff,onPick,customers,setCustomers,onCust}){
 
 /* ================= 1. Order ================= */
 function OrderView({s}){
-  const {tables,menu,setMenu,orders,setOrders,me,promos,endTasks,alerts,setAlerts,flash}=s;
-  const [tab,setTab]=useState('new'); // new | queue | alerts
+  const {tables,menu,setMenu,orders,setOrders,me,promos,endTasks,alerts,setAlerts,bookings,setBookings,flash}=s;
+  const [tab,setTab]=useState('new'); // new | queue | alerts | book
   const [endOpen,setEndOpen]=useState(false);
   const openAlerts=alerts.filter(a=>a.status==='open'&&!alertExpired(a)&&alertFor(a,'staff')).length;
+  const pendBook=bookings.filter(b=>b.status==='pending').length;
   const [sel,setSel]=useState(null); // table id
   const [cart,setCart]=useState({}); // name -> qty
   const [note,setNote]=useState('');
@@ -876,14 +969,16 @@ function OrderView({s}){
   const [showPromo,setShowPromo]=useState(false);
   const livePromos=(promos||[]).filter(promoActive);
   const [editMenu,setEditMenu]=useState(false);
+  const [newPrice,setNewPrice]=useState('');
   const addMenuItem=(gi)=>{const val=newItem.trim();if(!val)return;
-    setMenu(v=>v.map((g,i)=>i===gi?{...g,items:g.items.includes(val)?g.items:[...g.items,val]}:g));
-    setNewItem('');setAddGrp(null);flash('Đã thêm "'+val+'" vào thực đơn');};
-  const delMenuItem=(gi,item)=>{setMenu(v=>v.map((g,i)=>i===gi?{...g,items:g.items.filter(x=>x!==item)}:g));};
+    setMenu(v=>v.map((g,i)=>i===gi?{...g,items:g.items.some(x=>x.name===val)?g.items:[...g.items,{name:val,price:Number(newPrice)||0}]}:g));
+    setNewItem('');setNewPrice('');setAddGrp(null);flash('Đã thêm "'+val+'" vào thực đơn');};
+  const delMenuItem=(gi,name)=>{setMenu(v=>v.map((g,i)=>i===gi?{...g,items:g.items.filter(x=>x.name!==name)}:g));};
 
   const pendingByTable={};
   orders.filter(o=>o.status==='pending').forEach(o=>{pendingByTable[o.table]=(pendingByTable[o.table]||0)+1;});
   const cartCount=Object.values(cart).reduce((a,b)=>a+b,0);
+  const cartTotal=Object.entries(cart).reduce((a,[n,q])=>a+q*priceOfItem(menu,n),0);
   const add=(n)=>setCart(c=>({...c,[n]:(c[n]||0)+1}));
   const dec=(n)=>setCart(c=>{const q=(c[n]||0)-1;const nc={...c};if(q<=0)delete nc[n];else nc[n]=q;return nc;});
 
@@ -891,7 +986,7 @@ function OrderView({s}){
     if(!sel){flash('Chọn bàn trước đã');return;}
     if(cartCount===0){flash('Chưa chọn món nào');return;}
     const tbl=tables.find(t=>t.id===sel);
-    const items=Object.entries(cart).map(([name,qty])=>({name,qty}));
+    const items=Object.entries(cart).map(([name,qty])=>({name,qty,price:priceOfItem(menu,name)}));
     const o={id:uid(),table:tbl.no,items,note:note.trim(),by:me.id,byName:me.name,status:'pending',ts:Date.now()};
     setOrders(v=>[o,...v]);
     setCart({});setNote('');setSel(null);
@@ -926,6 +1021,7 @@ function OrderView({s}){
         <button className={tab==='new'?'on':''} onClick={()=>setTab('new')}><i className="ti ti-plus"/>Tạo order</button>
         <button className={tab==='queue'?'on':''} onClick={()=>setTab('queue')}><i className="ti ti-clipboard-list"/>Quầy chờ {pending.length>0&&`(${pending.length})`}</button>
         <button className={tab==='alerts'?'on':''} onClick={()=>setTab('alerts')}><i className="ti ti-bell-ringing"/>Yêu cầu {openAlerts>0&&`(${openAlerts})`}</button>
+        <button className={tab==='book'?'on':''} onClick={()=>setTab('book')}><i className="ti ti-calendar-event"/>Đặt bàn {pendBook>0&&`(${pendBook})`}</button>
       </div>
 
       {tab==='new'&&(
@@ -949,17 +1045,18 @@ function OrderView({s}){
             <div className="panel-h"><i className="ti ti-glass-full lead"/><b>Chọn món</b>{cartCount>0&&<span className="chip a">{cartCount} món</span>}
               <button className={'btn sm '+(editMenu?'':'ghost')} onClick={()=>setEditMenu(v=>!v)}><i className={'ti '+(editMenu?'ti-check':'ti-pencil')}/>{editMenu?'Xong':'Sửa'}</button></div>
             <div className="panel-b">
-              {editMenu&&<p className="hint" style={{marginBottom:8}}>Bấm ✕ để xóa món khỏi thực đơn.</p>}
+              {editMenu&&<p className="hint" style={{marginBottom:8}}>Bấm ✕ để xóa món. Sửa giá ở Quản lý → Khác → Thực đơn.</p>}
               {menu.map((g,gi)=>(
                 <div className="menugrp" key={g.grp}>
                   <div className="gh">{g.grp}</div>
                   <div className="mitems">
-                    {g.items.map(n=>(
+                    {g.items.map(it=>(
                       editMenu?(
-                        <span key={n} className="mitem" style={{cursor:'default'}}>{n}<i className="ti ti-x" style={{fontSize:16,color:'var(--red)',cursor:'pointer'}} onClick={()=>delMenuItem(gi,n)}/></span>
+                        <span key={it.name} className="mitem" style={{cursor:'default'}}>{it.name}<i className="ti ti-x" style={{fontSize:16,color:'var(--red)',cursor:'pointer'}} onClick={()=>delMenuItem(gi,it.name)}/></span>
                       ):(
-                        <button key={n} className="mitem" onClick={()=>add(n)}>
-                          {cart[n]>0&&<span className="q">{cart[n]}</span>}{n}
+                        <button key={it.name} className="mitem" onClick={()=>add(it.name)}>
+                          {cart[it.name]>0&&<span className="q">{cart[it.name]}</span>}{it.name}
+                          <em style={{fontStyle:'normal',fontSize:11,color:'var(--muted)',fontWeight:600}}>{fmtVnd(it.price)}</em>
                         </button>
                       )
                     ))}
@@ -967,9 +1064,11 @@ function OrderView({s}){
                       <span className="mitem" style={{padding:'4px 6px'}}>
                         <input className="inp" autoFocus value={newItem} onChange={e=>setNewItem(e.target.value)}
                           onKeyDown={e=>{if(e.key==='Enter')addMenuItem(gi);if(e.key==='Escape'){setAddGrp(null);setNewItem('');}}}
-                          placeholder={'Món mới…'} style={{padding:'6px 9px',width:120,height:30}}/>
+                          placeholder={'Món mới…'} style={{padding:'6px 9px',width:100,height:30}}/>
+                        <input className="inp" type="number" value={newPrice} onChange={e=>setNewPrice(e.target.value)}
+                          onKeyDown={e=>{if(e.key==='Enter')addMenuItem(gi);}} placeholder="Giá" style={{padding:'6px 9px',width:70,height:30}}/>
                         <i className="ti ti-check" style={{fontSize:18,color:'var(--grn)',cursor:'pointer'}} onClick={()=>addMenuItem(gi)}/>
-                        <i className="ti ti-x" style={{fontSize:17,color:'var(--red)',cursor:'pointer'}} onClick={()=>{setAddGrp(null);setNewItem('');}}/>
+                        <i className="ti ti-x" style={{fontSize:17,color:'var(--red)',cursor:'pointer'}} onClick={()=>{setAddGrp(null);setNewItem('');setNewPrice('');}}/>
                       </span>
                     ):(
                       <button className="mitem" style={{borderStyle:'dashed',color:'var(--muted)'}} onClick={()=>{setAddGrp(gi);setNewItem('');}}>
@@ -988,12 +1087,17 @@ function OrderView({s}){
               <div className="panel-b">
                 {Object.entries(cart).map(([n,q])=>(
                   <div className="row" key={n}>
-                    <div style={{flex:1,fontWeight:600}}>{n}</div>
+                    <div style={{flex:1,minWidth:0}}><div style={{fontWeight:600}}>{n}</div>
+                      <div className="hint">{fmtVnd(priceOfItem(menu,n))} × {q} = <b>{fmtVnd(q*priceOfItem(menu,n))}</b></div></div>
                     <div className="stepper">
                       <button onClick={()=>dec(n)}>−</button><b>{q}</b><button onClick={()=>add(n)}>+</button>
                     </div>
                   </div>
                 ))}
+                <div className="row" style={{borderTop:'2px solid var(--border)'}}>
+                  <span style={{flex:1,fontWeight:700}}>Tổng tiền đồ</span>
+                  <b style={{fontFamily:'"Baloo 2"',fontSize:18,color:'var(--g)'}}>{fmtVnd(cartTotal)}</b>
+                </div>
                 <label className="fld" style={{marginTop:12}}><span>Ghi chú (không đá, ít đường…)</span>
                   <input className="inp" value={note} onChange={e=>setNote(e.target.value)} placeholder="Tuỳ chọn"/></label>
               </div>
@@ -1002,7 +1106,7 @@ function OrderView({s}){
 
           <div className="cartbar">
             <button className="btn wide block" onClick={send} disabled={!sel||cartCount===0}>
-              <i className="ti ti-send"/>Gửi về quầy{sel?` · Bàn ${tables.find(t=>t.id===sel).no}`:''}{cartCount>0?` · ${cartCount} món`:''}
+              <i className="ti ti-send"/>Gửi về quầy{sel?` · Bàn ${tables.find(t=>t.id===sel).no}`:''}{cartCount>0?` · ${cartCount} món · ${fmtVnd(cartTotal)}`:''}
             </button>
           </div>
         </div>
@@ -1018,6 +1122,7 @@ function OrderView({s}){
         </div>
       )}
       {tab==='alerts'&&<AlertsPanel alerts={alerts} setAlerts={setAlerts} me={me} role="staff" flash={flash}/>}
+      {tab==='book'&&<BookingsPanel bookings={bookings} setBookings={setBookings} me={me} flash={flash}/>}
       {endOpen&&<EndTableModal tables={tables} endTasks={endTasks} onClose={()=>setEndOpen(false)} flash={flash}/>}
     </div>
   );
@@ -1096,6 +1201,154 @@ function AlertsPanel({alerts,setAlerts,me,role,flash}){
       {open.map(a=>card(a,false))}
       {done.length>0&&<div style={{fontSize:13,fontWeight:700,color:'var(--muted)',margin:'16px 2px 10px'}}>Đã xử lý</div>}
       {done.map(a=>card(a,true))}
+    </div>
+  );
+}
+/* ===== Phiên bàn: mở → tắt → chốt bill (nguồn doanh số) ===== */
+const dayKey=(ts)=>{const d=new Date(ts);return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());};
+// Tiền đồ của bàn trong khoảng thời gian phiên
+const sessionItems=(orders,tableNo,startTs,endTs)=>orders.filter(o=>o.table===tableNo&&o.ts>=startTs&&o.ts<=(endTs||Date.now()));
+const itemsTotal=(list)=>list.reduce((a,o)=>a+(o.items||[]).reduce((x,i)=>x+(Number(i.price)||0)*(Number(i.qty)||0),0),0);
+// Tính tiền 1 phiên (làm tròn phút lên, tính theo giờ lẻ)
+function billOf(se,orders,nowTs){
+  const end=se.endTs||nowTs||Date.now();
+  const mins=Math.max(1,Math.round((end-se.startTs)/60000));
+  const hours=mins/60;
+  const tableAmt=Math.round(hours*(Number(se.price)||0));
+  const os=sessionItems(orders,se.tableNo,se.startTs,se.endTs);
+  const itemAmt=itemsTotal(os);
+  return {mins,hours,tableAmt,itemAmt,total:tableAmt+itemAmt,orders:os};
+}
+function TablesView({s}){
+  const {tables,sessions,setSessions,orders,me,customers,flash}=s;
+  const [,tick]=useState(0);
+  useEffect(()=>{const t=setInterval(()=>tick(x=>x+1),30000);return ()=>clearInterval(t);},[]);
+  const [bill,setBill]=useState(null); // session đang chốt
+  const openOf=(no)=>sessions.find(x=>x.tableNo===no&&!x.endTs);
+  const openTable=(t)=>{
+    if(openOf(t.no)){flash('Bàn '+t.no+' đang mở rồi');return;}
+    setSessions(v=>[{id:uid(),tableNo:t.no,tableType:t.type,price:Number(t.price)||0,startTs:Date.now(),endTs:null,by:me.id,byName:me.name},...v]);
+    flash('Đã mở bàn '+t.no+' — bắt đầu tính giờ ⏱️');
+  };
+  const closeTable=(se)=>setBill(se);
+  const confirmBill=(se,custId)=>{
+    const b=billOf(se,orders);
+    const cu=customers.find(c=>c.id===custId);
+    setSessions(v=>v.map(x=>x.id===se.id?{...x,endTs:Date.now(),mins:b.mins,tableAmt:b.tableAmt,itemAmt:b.itemAmt,total:b.total,
+      custId:custId||null,custName:cu?cu.name:'',closedBy:me.name}:x));
+    setBill(null);flash('Đã chốt bàn '+se.tableNo+' · '+fmtVnd(b.total)+' ✓');
+  };
+  const openCount=sessions.filter(x=>!x.endTs).length;
+  const todayRev=sessions.filter(x=>x.endTs&&dayKey(x.endTs)===today()).reduce((a,x)=>a+(x.total||0),0);
+  return (
+    <div>
+      <div className="grid-stat">
+        <div className="stat"><div className="ic g"><i className="ti ti-player-play"/></div><div className="n">{openCount}/{tables.length}</div><div className="l">Bàn đang chơi</div></div>
+        <div className="stat"><div className="ic gr"><i className="ti ti-cash"/></div><div className="n" style={{fontSize:20}}>{fmtVnd(todayRev)}</div><div className="l">Doanh số hôm nay</div></div>
+      </div>
+      <div className="panel">
+        <div className="panel-h"><i className="ti ti-layout-grid lead"/><b>Sơ đồ bàn</b><span className="hint">bấm để mở / chốt</span></div>
+        <div className="panel-b">
+          <div className="tablegrid">
+            {tables.slice().sort((a,b)=>a.no-b.no).map(t=>{
+              const se=openOf(t.no);
+              const b=se?billOf(se,orders):null;
+              return (
+                <button key={t.id} className={'tbl'+(se?' on':'')} onClick={()=>se?closeTable(se):openTable(t)}
+                  style={se?{borderColor:'var(--grn)',background:'var(--grn-lt)'}:null}>
+                  <span className="ty">{t.type}</span><span className="no">{t.no}</span>
+                  {se
+                    ? <span style={{fontSize:10,fontWeight:700,color:'var(--grn)'}}>{minToHM(b.mins)}</span>
+                    : <span style={{fontSize:9.5,color:'var(--muted2)'}}>trống</span>}
+                </button>
+              );
+            })}
+          </div>
+          <p className="hint" style={{marginTop:10}}>Bàn xanh = đang chơi (kèm giờ đã chơi). Bấm vào bàn xanh để chốt bill.</p>
+        </div>
+      </div>
+      {bill&&<BillModal se={bill} orders={orders} customers={customers} onClose={()=>setBill(null)} onConfirm={confirmBill}/>}
+    </div>
+  );
+}
+function BillModal({se,orders,customers,onClose,onConfirm}){
+  const b=billOf(se,orders);
+  const [custId,setCustId]=useState(se.custId||'');
+  const lines={};
+  b.orders.forEach(o=>(o.items||[]).forEach(i=>{
+    const k=i.name;lines[k]=lines[k]||{name:i.name,price:Number(i.price)||0,qty:0};lines[k].qty+=Number(i.qty)||0;}));
+  return (
+    <Modal title={'Chốt bill bàn '+se.tableNo} onClose={onClose}
+      foot={<button className="btn block wide" onClick={()=>onConfirm(se,custId)}><i className="ti ti-check"/>Chốt bill · {fmtVnd(b.total)}</button>}>
+      <div className="card" style={{background:'var(--bg)',marginBottom:12}}>
+        <div className="row" style={{padding:'6px 2px'}}><span style={{flex:1}} className="hint">Mở bàn lúc</span><b>{new Date(se.startTs).toLocaleTimeString('vi',{hour:'2-digit',minute:'2-digit'})}</b></div>
+        <div className="row" style={{padding:'6px 2px'}}><span style={{flex:1}} className="hint">Thời gian chơi</span><b>{minToHM(b.mins)}</b></div>
+        <div className="row" style={{padding:'6px 2px'}}><span style={{flex:1}} className="hint">Tiền bàn ({b.hours.toFixed(2)}h × {fmtVnd(se.price)})</span><b>{fmtVnd(b.tableAmt)}</b></div>
+      </div>
+      <div style={{fontWeight:700,fontSize:13.5,marginBottom:8}}>🧋 Đồ đã gọi</div>
+      {Object.keys(lines).length===0&&<p className="hint">Bàn này chưa gọi đồ.</p>}
+      {Object.values(lines).map(l=>(
+        <div className="row" key={l.name} style={{padding:'7px 2px'}}>
+          <div style={{flex:1,minWidth:0}}><div style={{fontWeight:600,fontSize:13}}>{l.name}</div><div className="hint">{fmtVnd(l.price)} × {l.qty}</div></div>
+          <b>{fmtVnd(l.price*l.qty)}</b>
+        </div>
+      ))}
+      <div className="row" style={{padding:'7px 2px',borderTop:'1px solid var(--border)'}}><span style={{flex:1}} className="hint">Tổng tiền đồ</span><b>{fmtVnd(b.itemAmt)}</b></div>
+      <div className="row" style={{padding:'10px 2px',borderTop:'2px solid var(--border)'}}>
+        <span style={{flex:1,fontWeight:700,fontSize:15}}>TỔNG CỘNG</span>
+        <b style={{fontFamily:'"Baloo 2"',fontSize:22,color:'var(--g)'}}>{fmtVnd(b.total)}</b>
+      </div>
+      <label className="fld" style={{marginTop:10}}><span>Gắn khách quen (để tích điểm & theo dõi)</span>
+        <select className="inp" value={custId} onChange={e=>setCustId(e.target.value)}>
+          <option value="">— Khách vãng lai —</option>
+          {customers.map(c=><option key={c.id} value={c.id}>{c.name}{c.phone?' · '+c.phone:''}</option>)}
+        </select></label>
+    </Modal>
+  );
+}
+
+/* Khách đặt bàn trước — quán duyệt */
+const BK_ST={pending:{label:'Chờ duyệt',chip:'a'},confirmed:{label:'Đã xác nhận',chip:'gr'},rejected:{label:'Đã từ chối',chip:'r'}};
+function BookingsPanel({bookings,setBookings,me,flash}){
+  const pending=bookings.filter(b=>b.status==='pending').sort((a,b)=>a.ts-b.ts);
+  const rest=bookings.filter(b=>b.status!=='pending').sort((a,b)=>b.ts-a.ts).slice(0,10);
+  const decide=(id,status)=>{
+    let reason='';
+    if(status==='rejected'){ reason=prompt('Lý do từ chối (khách sẽ thấy):','Khung giờ đó đã kín bàn')||''; }
+    setBookings(v=>v.map(b=>b.id===id?{...b,status,decidedTs:Date.now(),decidedBy:me.name,reason}:b));
+    flash(status==='confirmed'?'Đã xác nhận đặt bàn ✓':'Đã từ chối đặt bàn');
+  };
+  const card=(b)=>{
+    const st=BK_ST[b.status]||BK_ST.pending;
+    return (
+      <div className={'ocard'+(b.status!=='pending'?' done':'')} key={b.id}
+        style={b.status==='pending'?{borderLeftColor:'var(--blue)'}:null}>
+        <div className="oh">
+          <span style={{fontSize:20}}>📅</span>
+          <span className="otbl">{fmtDateVN(b.date)} · {b.time}</span>
+          <div className="spacer" style={{flex:1}}/>
+          <span className={'chip '+st.chip}>{st.label}</span>
+        </div>
+        <div style={{fontWeight:600,fontSize:13.5,marginBottom:2}}>{b.custName} · {b.phone||'—'}</div>
+        <div className="hint" style={{marginBottom:9}}>{b.tableType} · {b.hours} giờ · {b.people} người{b.note?' · '+b.note:''}</div>
+        {b.status==='pending'?(
+          <div className="rowbtns">
+            <button className="btn sm" style={{flex:1}} onClick={()=>decide(b.id,'confirmed')}><i className="ti ti-check"/>Xác nhận</button>
+            <button className="btn ghost sm" style={{flex:1}} onClick={()=>decide(b.id,'rejected')}><i className="ti ti-x"/>Từ chối</button>
+          </div>
+        ):(
+          <div className="hint">{b.decidedBy?'bởi '+b.decidedBy:''}{b.reason?' · '+b.reason:''}</div>
+        )}
+      </div>
+    );
+  };
+  return (
+    <div>
+      {pending.length===0&&rest.length===0&&<Empty icon="ti-calendar-off" text="Chưa có khách đặt bàn"/>}
+      {pending.length>0&&<div style={{fontSize:13,fontWeight:700,color:'var(--blue)',margin:'2px 2px 10px'}}><i className="ti ti-calendar-plus"/> Chờ duyệt ({pending.length})</div>}
+      {pending.map(card)}
+      {rest.length>0&&<div style={{fontSize:13,fontWeight:700,color:'var(--muted)',margin:'16px 2px 10px'}}>Đã xử lý</div>}
+      {rest.map(card)}
     </div>
   );
 }
@@ -1845,27 +2098,301 @@ function FeedbackSection({feedback,setFeedback,customers,me,isManager,flash}){
 /* ================= Settings (manager) ================= */
 function ManageView({s}){
   const {staff,setStaff,menu,setMenu,promos,setPromos,tours,setTours,penaltyRules,setPenaltyRules,violations,attend,tables,setTables,endTasks,setEndTasks,broadcasts,setBroadcasts,customers,cloud,flash}=s;
-  const [sec,setSec]=useState('promo');
+  const [sec,setSec]=useState('book');
+  const [oth,setOth]=useState('staff'); // mục con của "Khác"
   return (
     <div>
       <div className="seg">
+        <button className={sec==='book'?'on':''} onClick={()=>setSec('book')}><i className="ti ti-book"/>Sổ sách</button>
         <button className={sec==='promo'?'on':''} onClick={()=>setSec('promo')}><i className="ti ti-gift"/>Khuyến mãi</button>
+        <button className={sec==='pay'?'on':''} onClick={()=>setSec('pay')}><i className="ti ti-cash"/>Lỗi & lương</button>
+        <button className={sec==='grow'?'on':''} onClick={()=>setSec('grow')}><i className="ti ti-chart-line"/>Tăng doanh số</button>
+        <button className={sec==='maint'?'on':''} onClick={()=>setSec('maint')}><i className="ti ti-tools"/>Bảo trì</button>
         <button className={sec==='tour'?'on':''} onClick={()=>setSec('tour')}><i className="ti ti-trophy"/>Giải đấu</button>
         <button className={sec==='bc'?'on':''} onClick={()=>setSec('bc')}><i className="ti ti-speakerphone"/>Gửi tin</button>
-        <button className={sec==='qr'?'on':''} onClick={()=>setSec('qr')}><i className="ti ti-qrcode"/>QR bàn</button>
-        <button className={sec==='pay'?'on':''} onClick={()=>setSec('pay')}><i className="ti ti-cash"/>Lỗi & lương</button>
-        <button className={sec==='tables'?'on':''} onClick={()=>setSec('tables')}><i className="ti ti-layout-grid"/>Bàn</button>
-        <button className={sec==='staff'?'on':''} onClick={()=>setSec('staff')}><i className="ti ti-users"/>Nhân viên</button>
-        <button className={sec==='menu'?'on':''} onClick={()=>setSec('menu')}><i className="ti ti-list"/>Thực đơn</button>
+        <button className={sec==='other'?'on':''} onClick={()=>setSec('other')}><i className="ti ti-dots"/>Khác</button>
       </div>
-      {sec==='bc'&&<BroadcastMgr broadcasts={broadcasts} setBroadcasts={setBroadcasts} promos={promos} tours={tours} customers={customers} cloud={cloud} flash={flash}/>}
-      {sec==='qr'&&<QRMgr tables={tables} cloud={cloud}/>}
+      {sec==='book'&&<Ledger sessions={s.sessions} tours={tours} signups={s.signups}/>}
+      {sec==='grow'&&<GrowthView sessions={s.sessions} customers={customers} growth={s.growth} setGrowth={s.setGrowth} flash={flash}/>}
+      {sec==='maint'&&<MaintView maint={s.maint} setMaint={s.setMaint} flash={flash}/>}
       {sec==='promo'&&<PromoMgr promos={promos} setPromos={setPromos} flash={flash}/>}
-      {sec==='tour'&&<TourMgr tours={tours} setTours={setTours} flash={flash}/>}
       {sec==='pay'&&<PenaltyPayroll penaltyRules={penaltyRules} setPenaltyRules={setPenaltyRules} violations={violations} attend={attend} staff={staff} flash={flash}/>}
-      {sec==='tables'&&<BanMgr tables={tables} setTables={setTables} endTasks={endTasks} setEndTasks={setEndTasks} flash={flash}/>}
-      {sec==='staff'&&<StaffMgr staff={staff} setStaff={setStaff} flash={flash}/>}
-      {sec==='menu'&&<MenuMgr menu={menu} setMenu={setMenu} flash={flash}/>}
+      {sec==='tour'&&<TourMgr tours={tours} setTours={setTours} signups={s.signups} flash={flash}/>}
+      {sec==='bc'&&<BroadcastMgr broadcasts={broadcasts} setBroadcasts={setBroadcasts} promos={promos} tours={tours} customers={customers} cloud={cloud} flash={flash}/>}
+      {sec==='other'&&(
+        <div>
+          <p className="hint" style={{marginBottom:10}}>Các danh mục cố định, ít phải đổi.</p>
+          <div className="seg">
+            <button className={oth==='staff'?'on':''} onClick={()=>setOth('staff')}><i className="ti ti-users"/>Nhân viên</button>
+            <button className={oth==='menu'?'on':''} onClick={()=>setOth('menu')}><i className="ti ti-list"/>Thực đơn</button>
+            <button className={oth==='tables'?'on':''} onClick={()=>setOth('tables')}><i className="ti ti-layout-grid"/>Bàn</button>
+            <button className={oth==='qr'?'on':''} onClick={()=>setOth('qr')}><i className="ti ti-qrcode"/>QR bàn</button>
+          </div>
+          {oth==='staff'&&<StaffMgr staff={staff} setStaff={setStaff} flash={flash}/>}
+          {oth==='menu'&&<MenuMgr menu={menu} setMenu={setMenu} flash={flash}/>}
+          {oth==='tables'&&<BanMgr tables={tables} setTables={setTables} endTasks={endTasks} setEndTasks={setEndTasks} flash={flash}/>}
+          {oth==='qr'&&<QRMgr tables={tables} cloud={cloud}/>}
+        </div>
+      )}
+    </div>
+  );
+}
+/* ===== Sổ sách: doanh số ngày & tháng ===== */
+const revOfDay=(sessions,d)=>sessions.filter(x=>x.endTs&&dayKey(x.endTs)===d);
+const revOfMonth=(sessions,ym)=>sessions.filter(x=>x.endTs&&monthOf(dayKey(x.endTs))===ym);
+const sumRev=(list)=>list.reduce((a,x)=>({table:a.table+(x.tableAmt||0),item:a.item+(x.itemAmt||0),total:a.total+(x.total||0)}),{table:0,item:0,total:0});
+const prevMonth=(ym)=>{const [y,m]=ym.split('-').map(Number);const d=new Date(y,m-2,1);return d.getFullYear()+'-'+pad(d.getMonth()+1);};
+function Ledger({sessions,tours,signups}){
+  const [ym,setYm]=useState(thisMonth());
+  const td=sumRev(revOfDay(sessions,today()));
+  const tdCount=revOfDay(sessions,today()).length;
+  const mo=revOfMonth(sessions,ym);
+  const mSum=sumRev(mo);
+  const days={};
+  mo.forEach(x=>{const k=dayKey(x.endTs);days[k]=days[k]||[];days[k].push(x);});
+  const dayList=Object.keys(days).sort().reverse();
+  const feeRev=(signups||[]).filter(s=>s.paid).reduce((a,s)=>{const t=(tours||[]).find(x=>x.id===s.tourId);return a+(t?Number(t.entryFee)||0:0);},0);
+  return (
+    <div>
+      <div className="card" style={{marginBottom:14,textAlign:'center'}}>
+        <div className="hint">Doanh số hôm nay · {dayName(today())} {fmtDateVN(today())}</div>
+        <div style={{fontFamily:'"Baloo 2"',fontSize:34,fontWeight:800,color:'var(--g)'}}>{fmtVnd(td.total)}</div>
+        <div className="hint">{tdCount} lượt bàn · tiền bàn {fmtVnd(td.table)} · đồ {fmtVnd(td.item)}</div>
+      </div>
+      <div className="panel">
+        <div className="panel-h"><i className="ti ti-book lead"/><b>Tổng tháng</b>
+          <input type="month" className="inp" style={{width:'auto',padding:'7px 10px'}} value={ym} onChange={e=>setYm(e.target.value)}/></div>
+        <div className="panel-b">
+          <div className="grid-stat" style={{marginBottom:10}}>
+            <div className="stat"><div className="ic gr"><i className="ti ti-cash"/></div><div className="n" style={{fontSize:19}}>{fmtVnd(mSum.total)}</div><div className="l">Tổng doanh số</div></div>
+            <div className="stat"><div className="ic g"><i className="ti ti-clock"/></div><div className="n" style={{fontSize:19}}>{fmtVnd(mSum.table)}</div><div className="l">Tiền bàn</div></div>
+            <div className="stat"><div className="ic a"><i className="ti ti-glass-full"/></div><div className="n" style={{fontSize:19}}>{fmtVnd(mSum.item)}</div><div className="l">Tiền đồ</div></div>
+            <div className="stat"><div className="ic b"><i className="ti ti-users"/></div><div className="n">{mo.length}</div><div className="l">Lượt bàn</div></div>
+          </div>
+          {mo.length>0&&<div className="hint">Trung bình {fmtVnd(mSum.total/mo.length)}/lượt · đồ chiếm {Math.round(mSum.item/(mSum.total||1)*100)}% doanh số</div>}
+          {feeRev>0&&<div className="hint" style={{marginTop:4}}>Ngoài ra: lệ phí giải đã thu <b>{fmtVnd(feeRev)}</b> (chưa tính vào bảng trên)</div>}
+        </div>
+      </div>
+      <div className="panel">
+        <div className="panel-h"><i className="ti ti-calendar lead"/><b>Chi tiết theo ngày</b></div>
+        <div className="tbl-scroll">
+          <table className="data">
+            <thead><tr><th>Ngày</th><th>Lượt</th><th>Tiền bàn</th><th>Tiền đồ</th><th>Tổng</th></tr></thead>
+            <tbody>
+              {dayList.length===0&&<tr><td colSpan="5" style={{textAlign:'center',color:'var(--muted2)',padding:20}}>Chưa có bill nào chốt trong tháng này</td></tr>}
+              {dayList.map(d=>{const s=sumRev(days[d]);return (
+                <tr key={d}><td>{dayName(d)} {fmtDateVN(d).slice(0,5)}</td><td>{days[d].length}</td>
+                  <td>{fmtVnd(s.table)}</td><td>{fmtVnd(s.item)}</td>
+                  <td><b style={{color:'var(--g)',fontFamily:'"Baloo 2"'}}>{fmtVnd(s.total)}</b></td></tr>
+              );})}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <p className="hint" style={{textAlign:'center'}}>Doanh số tự tính từ bill đã chốt ở mục <b>Bàn</b> (tiền giờ + đồ đã gọi).</p>
+    </div>
+  );
+}
+
+/* ===== Tăng doanh số: phân tích + to-do ===== */
+function GrowthView({sessions,customers,growth,setGrowth,flash}){
+  const [tab,setTab]=useState('an'); // an | todo
+  const ym=thisMonth(),pm=prevMonth(ym);
+  const cur=sumRev(revOfMonth(sessions,ym)),prev=sumRev(revOfMonth(sessions,pm));
+  const curN=revOfMonth(sessions,ym).length,prevN=revOfMonth(sessions,pm).length;
+  const pct=(a,b)=>b>0?Math.round((a-b)/b*100):(a>0?100:0);
+  const Delta=({now,before,money})=>{
+    const p=pct(now,before);const up=p>=0;
+    return <span className={'chip '+(up?'gr':'r')}>{up?'▲':'▼'} {Math.abs(p)}%</span>;
+  };
+  // Phân tích khách từ phiên đã chốt
+  const seen={};
+  sessions.filter(x=>x.endTs&&x.custId).forEach(x=>{
+    const o=seen[x.custId]=seen[x.custId]||{first:x.endTs,last:x.endTs,n:0,cur:0,prev:0,spend:0};
+    o.first=Math.min(o.first,x.endTs);o.last=Math.max(o.last,x.endTs);o.n++;o.spend+=x.total||0;
+    const m=monthOf(dayKey(x.endTs)); if(m===ym)o.cur++; else if(m===pm)o.prev++;
+  });
+  const withInfo=customers.map(c=>({c,i:seen[c.id]})).filter(x=>x.i);
+  const fading=withInfo.filter(x=>x.i.prev>0&&x.i.cur<x.i.prev).sort((a,b)=>(b.i.prev-b.i.cur)-(a.i.prev-a.i.cur));
+  const gone=withInfo.filter(x=>Date.now()-x.i.last>21*86400000).sort((a,b)=>a.i.last-b.i.last);
+  const fresh=withInfo.filter(x=>Date.now()-x.i.first<30*86400000).sort((a,b)=>b.i.first-a.i.first);
+  const daysAgo=(ts)=>Math.round((Date.now()-ts)/86400000);
+
+  const toggleSub=(gid,sid)=>setGrowth(v=>v.map(g=>g.id!==gid?g:{...g,subs:g.subs.map(s=>s.id===sid?{...s,done:!s.done}:s)}));
+  const [nt,setNt]=useState('');
+  const addTask=()=>{if(!nt.trim())return;setGrowth(v=>[...v,{id:uid(),title:nt.trim(),done:false,subs:[]}]);setNt('');};
+  const delTask=(gid)=>{if(confirm('Xoá mục này?'))setGrowth(v=>v.filter(g=>g.id!==gid));};
+  const [ns,setNs]=useState({});
+  const addSub=(gid)=>{const t=(ns[gid]||'').trim();if(!t)return;setGrowth(v=>v.map(g=>g.id===gid?{...g,subs:[...g.subs,{id:uid(),text:t,done:false}]}:g));setNs(x=>({...x,[gid]:''}));};
+  const delSub=(gid,sid)=>setGrowth(v=>v.map(g=>g.id===gid?{...g,subs:g.subs.filter(s=>s.id!==sid)}:g));
+
+  return (
+    <div>
+      <div className="seg">
+        <button className={tab==='an'?'on':''} onClick={()=>setTab('an')}><i className="ti ti-chart-line"/>Phân tích</button>
+        <button className={tab==='todo'?'on':''} onClick={()=>setTab('todo')}><i className="ti ti-checklist"/>Việc cần làm</button>
+      </div>
+
+      {tab==='an'&&(
+        <div>
+          <div className="panel">
+            <div className="panel-h"><i className="ti ti-chart-line lead"/><b>Tháng này so tháng trước</b></div>
+            <div className="tbl-scroll">
+              <table className="data">
+                <thead><tr><th>Chỉ số</th><th>Tháng trước</th><th>Tháng này</th><th>Thay đổi</th></tr></thead>
+                <tbody>
+                  <tr><td style={{fontWeight:600}}>Doanh số</td><td>{fmtVnd(prev.total)}</td><td><b>{fmtVnd(cur.total)}</b></td><td><Delta now={cur.total} before={prev.total}/></td></tr>
+                  <tr><td style={{fontWeight:600}}>Tiền bàn</td><td>{fmtVnd(prev.table)}</td><td><b>{fmtVnd(cur.table)}</b></td><td><Delta now={cur.table} before={prev.table}/></td></tr>
+                  <tr><td style={{fontWeight:600}}>Tiền đồ</td><td>{fmtVnd(prev.item)}</td><td><b>{fmtVnd(cur.item)}</b></td><td><Delta now={cur.item} before={prev.item}/></td></tr>
+                  <tr><td style={{fontWeight:600}}>Lượt bàn</td><td>{prevN}</td><td><b>{curN}</b></td><td><Delta now={curN} before={prevN}/></td></tr>
+                  <tr><td style={{fontWeight:600}}>TB / lượt</td><td>{fmtVnd(prevN?prev.total/prevN:0)}</td><td><b>{fmtVnd(curN?cur.total/curN:0)}</b></td><td><Delta now={curN?cur.total/curN:0} before={prevN?prev.total/prevN:0}/></td></tr>
+                </tbody>
+              </table>
+            </div>
+            {curN===0&&prevN===0&&<p className="hint" style={{padding:'10px 16px'}}>Chưa có bill nào — chốt bill ở mục <b>Bàn</b> để có số liệu.</p>}
+          </div>
+
+          <div className="panel">
+            <div className="panel-h"><i className="ti ti-trending-down lead" style={{color:'var(--red)'}}/><b>Khách đang chơi ít đi</b><span className="chip r">{fading.length}</span></div>
+            <div className="panel-b" style={{paddingTop:6}}>
+              {fading.length===0&&<p className="hint">Chưa phát hiện khách nào giảm tần suất.</p>}
+              {fading.slice(0,8).map(({c,i})=>(
+                <div className="custrow" key={c.id}>
+                  <CustPic c={c} size={38}/>
+                  <div className="ci"><b>{c.name} {c.vip&&<i className="ti ti-crown" style={{color:'var(--amber)',fontSize:14}}/>}</b>
+                    <small>{c.phone||'—'} · tháng trước {i.prev} lượt → tháng này {i.cur} lượt</small></div>
+                  <span className="chip r">−{i.prev-i.cur}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="panel">
+            <div className="panel-h"><i className="ti ti-clock-x lead" style={{color:'var(--amber)'}}/><b>Lâu chưa quay lại (&gt;21 ngày)</b><span className="chip a">{gone.length}</span></div>
+            <div className="panel-b" style={{paddingTop:6}}>
+              {gone.length===0&&<p className="hint">Không có khách nào vắng lâu. Tốt!</p>}
+              {gone.slice(0,8).map(({c,i})=>(
+                <div className="custrow" key={c.id}>
+                  <CustPic c={c} size={38}/>
+                  <div className="ci"><b>{c.name}</b><small>{c.phone||'—'} · đã chi {fmtVnd(i.spend)} · {i.n} lượt</small></div>
+                  <span className="chip a">{daysAgo(i.last)} ngày</span>
+                </div>
+              ))}
+              {gone.length>0&&<p className="hint" style={{marginTop:8}}>💡 Gửi tin khuyến mãi cho nhóm này ở mục <b>Gửi tin</b>.</p>}
+            </div>
+          </div>
+
+          <div className="panel">
+            <div className="panel-h"><i className="ti ti-sparkles lead" style={{color:'var(--grn)'}}/><b>Khách mới cần quan tâm (30 ngày)</b><span className="chip gr">{fresh.length}</span></div>
+            <div className="panel-b" style={{paddingTop:6}}>
+              {fresh.length===0&&<p className="hint">Chưa có khách mới trong 30 ngày.</p>}
+              {fresh.slice(0,8).map(({c,i})=>(
+                <div className="custrow" key={c.id}>
+                  <CustPic c={c} size={38}/>
+                  <div className="ci"><b>{c.name}</b><small>{c.phone||'—'} · {i.n} lượt · đã chi {fmtVnd(i.spend)}</small></div>
+                  <span className="chip gr">{daysAgo(i.first)} ngày trước</span>
+                </div>
+              ))}
+              {fresh.length>0&&<p className="hint" style={{marginTop:8}}>💡 Nhớ mặt & tên, mời tích điểm để giữ chân.</p>}
+            </div>
+          </div>
+          <p className="hint" style={{textAlign:'center'}}>Phân tích dựa trên bill đã chốt có gắn khách quen.</p>
+        </div>
+      )}
+
+      {tab==='todo'&&(
+        <div>
+          {growth.map(g=>{
+            const dn=g.subs.filter(s=>s.done).length,tot=g.subs.length;
+            const pctv=tot?Math.round(dn/tot*100):0;
+            return (
+              <div className="panel" key={g.id}>
+                <div className="panel-h"><i className="ti ti-target lead"/><b>{g.title}</b>
+                  <span className={'chip '+(pctv===100?'gr':'')}>{dn}/{tot}</span>
+                  <button className="iconbtn" style={{padding:6,border:0,background:'none'}} onClick={()=>delTask(g.id)}><i className="ti ti-trash" style={{fontSize:16}}/></button></div>
+                <div className="panel-b" style={{paddingTop:8}}>
+                  <div className={'prog'+(pctv===100?' full':'')} style={{marginBottom:10}}><i style={{width:pctv+'%'}}/></div>
+                  {g.subs.map(s=>(
+                    <div className="row" key={s.id}>
+                      <div className={'chk'+(s.done?' done':'')} onClick={()=>toggleSub(g.id,s.id)}>{s.done&&<i className="ti ti-check"/>}</div>
+                      <div style={{flex:1,fontWeight:500,textDecoration:s.done?'line-through':'none',color:s.done?'var(--muted)':'var(--ink)'}}>{s.text}</div>
+                      <button className="iconbtn" style={{padding:6,border:0,background:'none'}} onClick={()=>delSub(g.id,s.id)}><i className="ti ti-x" style={{fontSize:15}}/></button>
+                    </div>
+                  ))}
+                  <div style={{display:'flex',gap:8,marginTop:10}}>
+                    <input className="inp" value={ns[g.id]||''} onChange={e=>setNs(x=>({...x,[g.id]:e.target.value}))} onKeyDown={e=>e.key==='Enter'&&addSub(g.id)} placeholder="Thêm việc nhỏ…"/>
+                    <button className="btn" onClick={()=>addSub(g.id)}><i className="ti ti-plus"/></button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          <div className="panel"><div className="panel-b">
+            <div style={{display:'flex',gap:8}}>
+              <input className="inp" value={nt} onChange={e=>setNt(e.target.value)} onKeyDown={e=>e.key==='Enter'&&addTask()} placeholder="Thêm nhóm việc mới…"/>
+              <button className="btn" onClick={addTask}><i className="ti ti-plus"/>Thêm</button>
+            </div>
+          </div></div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ===== Lịch bảo trì (lặp theo chu kỳ) ===== */
+function MaintView({maint,setMaint,flash}){
+  const [nf,setNf]=useState({name:'',everyDays:30,note:''});
+  const list=[...maint].sort((a,b)=>(a.due||'').localeCompare(b.due||''));
+  const done=(m)=>{const nd=addDays(today(),Number(m.everyDays)||30);
+    setMaint(v=>v.map(x=>x.id===m.id?{...x,lastDone:today(),due:nd}:x));flash('Đã làm xong · hạn kế tiếp '+fmtDateVN(nd));};
+  const del=(id)=>{if(confirm('Xoá việc bảo trì này?'))setMaint(v=>v.filter(x=>x.id!==id));};
+  const patch=(id,o)=>setMaint(v=>v.map(x=>x.id===id?{...x,...o}:x));
+  const add=()=>{if(!nf.name.trim()){flash('Nhập tên việc');return;}
+    setMaint(v=>[...v,{id:uid(),name:nf.name.trim(),note:nf.note.trim(),everyDays:Number(nf.everyDays)||30,due:addDays(today(),Number(nf.everyDays)||30),lastDone:''}]);
+    setNf({name:'',everyDays:30,note:''});flash('Đã thêm việc bảo trì');};
+  const overdue=list.filter(m=>daysLeft(m.due)<0).length;
+  const soon=list.filter(m=>{const d=daysLeft(m.due);return d>=0&&d<=7;}).length;
+  return (
+    <div>
+      <div className="grid-stat">
+        <div className="stat"><div className="ic r"><i className="ti ti-alert-triangle"/></div><div className="n">{overdue}</div><div className="l">Quá hạn</div></div>
+        <div className="stat"><div className="ic a"><i className="ti ti-clock"/></div><div className="n">{soon}</div><div className="l">Tới hạn ≤7 ngày</div></div>
+      </div>
+      <div className="panel">
+        <div className="panel-h"><i className="ti ti-tools lead"/><b>Lịch bảo trì / bảo dưỡng</b></div>
+        <div className="panel-b" style={{paddingTop:6}}>
+          {list.length===0&&<Empty icon="ti-tools-off" text="Chưa có việc bảo trì nào"/>}
+          {list.map(m=>{
+            const d=daysLeft(m.due);
+            const st=d<0?{t:'Quá hạn '+(-d)+' ngày',c:'r'}:d===0?{t:'Hôm nay',c:'a'}:d<=7?{t:'Còn '+d+' ngày',c:'a'}:{t:'Còn '+d+' ngày',c:''};
+            return (
+              <div className="row" key={m.id} style={{alignItems:'flex-start',flexWrap:'wrap'}}>
+                <span style={{fontSize:20}}>{d<0?'🔴':d<=7?'🟡':'🟢'}</span>
+                <div style={{flex:1,minWidth:140}}>
+                  <div style={{fontWeight:600}}>{m.name}</div>
+                  {m.note&&<div className="hint">{m.note}</div>}
+                  <div className="hint">Hạn {fmtDateVN(m.due)} · mỗi {m.everyDays} ngày{m.lastDone?' · lần cuối '+fmtDateVN(m.lastDone):' · chưa làm lần nào'}</div>
+                </div>
+                <span className={'chip '+st.c}>{st.t}</span>
+                <label style={{display:'flex',alignItems:'center',gap:4}}>
+                  <input className="inp" type="number" min="1" style={{width:64,padding:'5px 7px'}} value={m.everyDays} onChange={e=>patch(m.id,{everyDays:Number(e.target.value)||1})}/><span className="hint">ngày</span></label>
+                <button className="btn sm" onClick={()=>done(m)}><i className="ti ti-check"/>Đã làm</button>
+                <button className="iconbtn" style={{padding:6,border:0,background:'none'}} onClick={()=>del(m.id)}><i className="ti ti-trash" style={{fontSize:16}}/></button>
+              </div>
+            );
+          })}
+          <div className="sep"/>
+          <div style={{display:'flex',gap:8,alignItems:'flex-end',flexWrap:'wrap'}}>
+            <label className="fld" style={{flex:1,minWidth:130,marginBottom:0}}><span>Thêm việc bảo trì</span>
+              <input className="inp" value={nf.name} onChange={e=>setNf({...nf,name:e.target.value})} placeholder="VD: Thay băng bàn"/></label>
+            <label className="fld" style={{flex:1,minWidth:120,marginBottom:0}}><span>Ghi chú</span>
+              <input className="inp" value={nf.note} onChange={e=>setNf({...nf,note:e.target.value})} placeholder="Tuỳ chọn"/></label>
+            <label style={{display:'flex',alignItems:'center',gap:4}}><input className="inp" type="number" min="1" style={{width:70}} value={nf.everyDays} onChange={e=>setNf({...nf,everyDays:e.target.value})}/><span className="hint">ngày/lần</span></label>
+            <button className="btn" onClick={add}><i className="ti ti-plus"/>Thêm</button>
+          </div>
+          <p className="hint" style={{marginTop:10}}>Bấm “Đã làm” → app tự đặt hạn lần sau theo chu kỳ. Cần mua/thay đồ → xem mục <b>Kiểm kho</b>.</p>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1980,6 +2507,173 @@ function PromoForm({promo,onSave,onClose}){
   );
 }
 
+/* ================= Tổ chức giải ================= */
+// Bảng xếp hạng từ kết quả trận: thắng 2đ, thua 0đ; xếp theo điểm → hiệu số ván
+function tourStandings(tourId,signups,results){
+  const rows={};
+  signups.filter(s=>s.tourId===tourId).forEach(s=>{rows[s.custId]={id:s.custId,name:s.custName,w:0,l:0,rf:0,ra:0};});
+  results.filter(r=>r.tourId===tourId).forEach(r=>{
+    const A=rows[r.aId],B=rows[r.bId]; if(!A||!B)return;
+    A.rf+=r.scoreA;A.ra+=r.scoreB;B.rf+=r.scoreB;B.ra+=r.scoreA;
+    if(r.scoreA>r.scoreB){A.w++;B.l++;} else if(r.scoreB>r.scoreA){B.w++;A.l++;}
+  });
+  return Object.values(rows).map(x=>({...x,pts:x.w*2,diff:x.rf-x.ra}))
+    .sort((a,b)=>b.pts-a.pts||b.diff-a.diff||b.rf-a.rf);
+}
+function OrganizerView({s}){
+  const {tours,setTours,signups,setSignups,results,setResults,me,flash}=s;
+  const [openId,setOpenId]=useState(null);
+  const t=tours.find(x=>x.id===openId);
+  if(t) return <TourDetail t={t} setTours={setTours} signups={signups} setSignups={setSignups}
+    results={results} setResults={setResults} me={me} flash={flash} onBack={()=>setOpenId(null)}/>;
+  return <TourMgr tours={tours} setTours={setTours} signups={signups} flash={flash} onOpen={setOpenId}/>;
+}
+function TourDetail({t,setTours,signups,setSignups,results,setResults,me,flash,onBack}){
+  const [tab,setTab]=useState('signup'); // signup | result | info
+  const [edit,setEdit]=useState(false);
+  const regs=signups.filter(x=>x.tourId===t.id).sort((a,b)=>a.ts-b.ts);
+  const slots=Number(t.players)||0;
+  const patchReg=(id,obj)=>setSignups(v=>v.map(x=>x.id===id?{...x,...obj}:x));
+  const delReg=(id)=>{if(confirm('Xoá đăng ký này?'))setSignups(v=>v.filter(x=>x.id!==id));};
+  const c=tourCalc(t);
+  return (
+    <div>
+      <button className="btn ghost sm" onClick={onBack} style={{marginBottom:12}}><i className="ti ti-arrow-left"/>Danh sách giải</button>
+      <div className="card" style={{marginBottom:14}}>
+        <div style={{display:'flex',alignItems:'flex-start',gap:8}}>
+          <b style={{flex:1,fontSize:16,fontFamily:'"Baloo 2"'}}>{t.name}</b>
+          <button className="btn ghost sm" onClick={()=>setEdit(true)}><i className="ti ti-pencil"/>Sửa</button>
+        </div>
+        <div className="hint" style={{marginTop:4}}><i className="ti ti-calendar"/> {t.date?fmtDateVN(t.date):'—'}{t.time?' · '+t.time:''} · {t.mode||'8 bi'} · {TOUR_FORMATS[t.format]||''}</div>
+        <div className="hint"><i className="ti ti-users"/> {regs.length}/{slots} đã đăng ký · lệ phí {fmtVnd(t.entryFee)} · thưởng {fmtVnd(t.prizePool)}</div>
+      </div>
+      <div className="seg">
+        <button className={tab==='signup'?'on':''} onClick={()=>setTab('signup')}><i className="ti ti-user-check"/>Đăng ký ({regs.length})</button>
+        <button className={tab==='result'?'on':''} onClick={()=>setTab('result')}><i className="ti ti-list-numbers"/>Kết quả & BXH</button>
+        <button className={tab==='info'?'on':''} onClick={()=>setTab('info')}><i className="ti ti-report-money"/>Lợi nhuận</button>
+      </div>
+
+      {tab==='signup'&&(
+        <div className="panel">
+          <div className="panel-h"><i className="ti ti-user-check lead"/><b>Khách đã đăng ký</b>
+            <span className={'chip '+(regs.length>=slots?'r':'g')}>{regs.length}/{slots} slot</span></div>
+          <div className="panel-b" style={{paddingTop:6}}>
+            {regs.length===0&&<Empty icon="ti-user-off" text="Chưa có khách nào đăng ký. Khách đăng ký từ app của họ (tab Giải đấu)."/>}
+            {regs.map((r,i)=>(
+              <div className="row" key={r.id}>
+                <span style={{fontFamily:'"Baloo 2"',fontWeight:700,color:'var(--muted)',minWidth:18}}>{i+1}</span>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontWeight:600}}>{r.custName}</div>
+                  <div className="hint">{r.phone||'—'} · đăng ký {new Date(r.ts).toLocaleString('vi',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</div>
+                </div>
+                <button className={'btn sm '+(r.paid?'':'ghost')} onClick={()=>patchReg(r.id,{paid:!r.paid})} title="Đã thu lệ phí">
+                  <i className="ti ti-cash"/>{r.paid?'Đã thu':'Chưa thu'}</button>
+                <button className={'btn sm '+(r.checkedIn?'':'ghost')} onClick={()=>patchReg(r.id,{checkedIn:!r.checkedIn})} title="Điểm danh">
+                  <i className={'ti '+(r.checkedIn?'ti-user-check':'ti-user')}/>{r.checkedIn?'Có mặt':'Điểm danh'}</button>
+                <button className="iconbtn" style={{padding:6,border:0,background:'none'}} onClick={()=>delReg(r.id)}><i className="ti ti-trash" style={{fontSize:16}}/></button>
+              </div>
+            ))}
+            {regs.length>0&&(
+              <div className="hint" style={{marginTop:10}}>
+                Đã thu lệ phí: <b>{regs.filter(r=>r.paid).length}/{regs.length}</b> = {fmtVnd(regs.filter(r=>r.paid).length*(Number(t.entryFee)||0))} ·
+                Có mặt: <b>{regs.filter(r=>r.checkedIn).length}</b>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {tab==='result'&&<TourResults t={t} regs={regs} results={results} setResults={setResults} me={me} flash={flash}/>}
+      {tab==='info'&&(
+        <div className="card">
+          <div className="row" style={{padding:'6px 2px'}}><span style={{flex:1}} className="hint">Số trận{c.groupMatches?` (bảng ${c.groupMatches} + loại ${c.koMatches})`:''}</span><b>{c.total} trận</b></div>
+          <div className="row" style={{padding:'6px 2px'}}><span style={{flex:1}} className="hint">Thu lệ phí (dự kiến {slots} người)</span><b>{fmtVnd(c.revEntry)}</b></div>
+          <div className="row" style={{padding:'6px 2px'}}><span style={{flex:1}} className="hint">Thu tiền bàn ({c.tableHours.toFixed(1)}h)</span><b>{fmtVnd(c.revTable)}</b></div>
+          <div className="row" style={{padding:'6px 2px'}}><span style={{flex:1,fontWeight:600}}>Tổng thu</span><b style={{color:'var(--grn)'}}>{fmtVnd(c.revTotal)}</b></div>
+          <div className="row" style={{padding:'6px 2px'}}><span style={{flex:1,fontWeight:600}}>Tổng chi</span><b style={{color:'var(--red)'}}>−{fmtVnd(c.costTotal)}</b></div>
+          <div className="row" style={{padding:'9px 2px',borderTop:'2px solid var(--border)'}}><span style={{flex:1,fontWeight:700,fontSize:15}}>Lợi nhuận dự kiến</span><b style={{color:c.profit>=0?'var(--g)':'var(--red)',fontFamily:'"Baloo 2"',fontSize:19}}>{fmtVnd(c.profit)}</b></div>
+          <div className="sep"/>
+          <div className="row" style={{padding:'6px 2px'}}><span style={{flex:1}} className="hint">Lệ phí ĐÃ THU thực tế ({regs.filter(r=>r.paid).length} người)</span><b>{fmtVnd(regs.filter(r=>r.paid).length*(Number(t.entryFee)||0))}</b></div>
+          <button className="btn ghost block" style={{marginTop:10}} onClick={()=>setEdit(true)}><i className="ti ti-pencil"/>Sửa thông số giải</button>
+        </div>
+      )}
+      {edit&&<TourForm tour={t} onSave={(nt)=>{setTours(v=>v.map(x=>x.id===nt.id?nt:x));setEdit(false);flash('Đã lưu giải');}} onClose={()=>setEdit(false)}/>}
+    </div>
+  );
+}
+function TourResults({t,regs,results,setResults,me,flash}){
+  const rs=results.filter(r=>r.tourId===t.id).sort((a,b)=>b.ts-a.ts);
+  const [a,setA]=useState('');const [b,setB]=useState('');
+  const [sa,setSa]=useState(0);const [sb,setSb]=useState(0);
+  const nameOf=id=>(regs.find(r=>r.custId===id)||{}).custName||'?';
+  const add=()=>{
+    if(!a||!b){flash('Chọn 2 người chơi');return;}
+    if(a===b){flash('Hai người chơi phải khác nhau');return;}
+    if(Number(sa)===Number(sb)){flash('Tỉ số không được hoà');return;}
+    setResults(v=>[{id:uid(),tourId:t.id,aId:a,aName:nameOf(a),bId:b,bName:nameOf(b),scoreA:Number(sa)||0,scoreB:Number(sb)||0,by:me.name,ts:Date.now()},...v]);
+    setSa(0);setSb(0);flash('Đã ghi kết quả');
+  };
+  const del=(id)=>{if(confirm('Xoá kết quả này?'))setResults(v=>v.filter(x=>x.id!==id));};
+  const table=tourStandings(t.id,regs,results);
+  if(regs.length===0) return <Empty icon="ti-users" text="Chưa có ai đăng ký — chưa ghi được kết quả."/>;
+  return (
+    <div>
+      <div className="panel">
+        <div className="panel-h"><i className="ti ti-plus lead"/><b>Ghi kết quả trận</b><span className="chip">race to {t.raceTo}</span></div>
+        <div className="panel-b">
+          <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+            <select className="inp" style={{flex:1,minWidth:110}} value={a} onChange={e=>setA(e.target.value)}>
+              <option value="">— Người chơi A —</option>{regs.map(r=><option key={r.id} value={r.custId}>{r.custName}</option>)}</select>
+            <input className="inp" type="number" min="0" style={{width:56,textAlign:'center'}} value={sa} onChange={e=>setSa(e.target.value)}/>
+            <b style={{color:'var(--muted)'}}>–</b>
+            <input className="inp" type="number" min="0" style={{width:56,textAlign:'center'}} value={sb} onChange={e=>setSb(e.target.value)}/>
+            <select className="inp" style={{flex:1,minWidth:110}} value={b} onChange={e=>setB(e.target.value)}>
+              <option value="">— Người chơi B —</option>{regs.map(r=><option key={r.id} value={r.custId}>{r.custName}</option>)}</select>
+          </div>
+          <button className="btn block" style={{marginTop:10}} onClick={add}><i className="ti ti-check"/>Ghi kết quả</button>
+        </div>
+      </div>
+
+      <div className="panel">
+        <div className="panel-h"><i className="ti ti-trophy lead"/><b>Bảng xếp hạng</b><span className="hint">thắng 2đ</span></div>
+        <div className="tbl-scroll">
+          <table className="data">
+            <thead><tr><th>#</th><th>Người chơi</th><th>T</th><th>B</th><th>Ván</th><th>Điểm</th></tr></thead>
+            <tbody>
+              {table.map((r,i)=>(
+                <tr key={r.id}>
+                  <td style={{fontFamily:'"Baloo 2"',fontWeight:700,color:i===0?'var(--amber)':'var(--muted)'}}>{i===0?'🏆':i+1}</td>
+                  <td style={{fontWeight:600}}>{r.name}</td>
+                  <td style={{color:'var(--grn)'}}>{r.w}</td><td style={{color:'var(--red)'}}>{r.l}</td>
+                  <td className="hint">{r.rf}–{r.ra}</td>
+                  <td><b style={{fontFamily:'"Baloo 2"',color:'var(--g)'}}>{r.pts}</b></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="panel">
+        <div className="panel-h"><i className="ti ti-history lead"/><b>Các trận đã ghi ({rs.length})</b></div>
+        <div className="panel-b" style={{paddingTop:6}}>
+          {rs.length===0&&<Empty icon="ti-ball-baseball" text="Chưa ghi trận nào"/>}
+          {rs.map(r=>(
+            <div className="row" key={r.id}>
+              <div style={{flex:1,minWidth:0,fontWeight:600,fontSize:13.5}}>
+                <span style={{color:r.scoreA>r.scoreB?'var(--grn)':'var(--muted)'}}>{r.aName}</span>
+                {' '}<b style={{fontFamily:'"Baloo 2"'}}>{r.scoreA}–{r.scoreB}</b>{' '}
+                <span style={{color:r.scoreB>r.scoreA?'var(--grn)':'var(--muted)'}}>{r.bName}</span>
+              </div>
+              <button className="iconbtn" style={{padding:6,border:0,background:'none'}} onClick={()=>del(r.id)}><i className="ti ti-trash" style={{fontSize:16}}/></button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ---- Giải đấu ---- */
 const TOUR_FORMATS={groups:'Chia bảng → loại trực tiếp',knockout:'Loại trực tiếp 2 mạng'};
 function tourMatches(t){
@@ -2017,8 +2711,9 @@ function tourCalc(t){
   const costTotal=(Number(t.prizePool)||0)+(Number(t.otherCost)||0);
   return {...m,raceTo,minPerRack,avgRacks,minPerMatch,chargedMatches,tableHours,revEntry,revTable,revTotal,costTotal,profit:revTotal-costTotal};
 }
-function TourMgr({tours,setTours,flash}){
+function TourMgr({tours,setTours,signups,flash,onOpen}){
   const [edit,setEdit]=useState(null);
+  const regCount=(id)=>(signups||[]).filter(s=>s.tourId===id).length;
   const save=(t)=>{setTours(v=>{const ex=v.some(x=>x.id===t.id);return ex?v.map(x=>x.id===t.id?t:x):[t,...v];});setEdit(null);flash('Đã lưu giải đấu');};
   const del=(id)=>{if(confirm('Xoá giải này?'))setTours(v=>v.filter(x=>x.id!==id));};
   const sorted=[...tours].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
@@ -2035,15 +2730,17 @@ function TourMgr({tours,setTours,flash}){
               <b style={{flex:1,fontSize:15,fontFamily:'"Baloo 2"'}}>{t.name}</b>
               <span className={'chip '+(past?'':'g')}>{past?'Đã tổ chức':'Sắp diễn ra'}</span>
             </div>
-            <div className="hint" style={{marginBottom:6}}><i className="ti ti-calendar"/> {t.date?fmtDateVN(t.date):'—'}{t.time?' · '+t.time:''} · {t.mode||'8 bi'} · {t.players||0} người</div>
-            <div className="hint" style={{marginBottom:10}}><i className="ti ti-tournament"/> {TOUR_FORMATS[t.format]||'—'} · ~{c.total} trận · race to {c.raceTo}</div>
+            <div className="hint" style={{marginBottom:6}}><i className="ti ti-calendar"/> {t.date?fmtDateVN(t.date):'—'}{t.time?' · '+t.time:''} · {t.mode||'8 bi'}</div>
+            <div className="hint" style={{marginBottom:6}}><i className="ti ti-tournament"/> {TOUR_FORMATS[t.format]||'—'} · ~{c.total} trận · race to {c.raceTo}</div>
+            <div className="hint" style={{marginBottom:10}}><i className="ti ti-user-check"/> <b style={{color:regCount(t.id)>=(t.players||0)?'var(--red)':'var(--g)'}}>{regCount(t.id)}/{t.players||0}</b> đã đăng ký</div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,textAlign:'center'}}>
               <div style={{background:'var(--grn-lt)',borderRadius:10,padding:'8px 4px'}}><div className="hint">Tổng thu</div><b style={{color:'var(--grn)',fontFamily:'"Baloo 2"',fontSize:14}}>{fmtVnd(c.revTotal)}</b></div>
               <div style={{background:'var(--red-lt)',borderRadius:10,padding:'8px 4px'}}><div className="hint">Tổng chi</div><b style={{color:'var(--red)',fontFamily:'"Baloo 2"',fontSize:14}}>{fmtVnd(c.costTotal)}</b></div>
               <div style={{background:c.profit>=0?'var(--g-lt)':'var(--red-lt)',borderRadius:10,padding:'8px 4px'}}><div className="hint">Lợi nhuận</div><b style={{color:c.profit>=0?'var(--g)':'var(--red)',fontFamily:'"Baloo 2"',fontSize:14}}>{fmtVnd(c.profit)}</b></div>
             </div>
             <div className="rowbtns" style={{marginTop:10}}>
-              <button className="btn ghost sm" onClick={()=>setEdit(t)}><i className="ti ti-pencil"/>Sửa & xem chi tiết</button>
+              {onOpen&&<button className="btn sm" style={{flex:1}} onClick={()=>onOpen(t.id)}><i className="ti ti-arrow-right"/>Mở giải · đăng ký · kết quả</button>}
+              <button className="btn ghost sm" onClick={()=>setEdit(t)}><i className="ti ti-pencil"/>Sửa</button>
               <button className="btn ghost sm" onClick={()=>del(t.id)}><i className="ti ti-trash"/></button>
             </div>
           </div>
@@ -2129,7 +2826,7 @@ function StaffMgr({staff,setStaff,flash}){
             <div style={{flex:1,minWidth:120}}><div style={{fontWeight:600}}>{u.name}</div>
               <div className="hint">{(ROLES[u.role]||ROLES.staff).icon} {roleLabel(u.role)}</div></div>
             <select className="inp" style={{width:'auto',padding:'6px 8px',fontSize:12}} value={u.role} onChange={e=>setRole(u.id,e.target.value)}>
-              <option value="manager">Quản lý</option><option value="counter">NV quầy</option><option value="staff">NV phục vụ</option>
+              {ROLE_KEYS.map(k=><option key={k} value={k}>{ROLES[k].label}</option>)}
             </select>
             <label style={{display:'flex',alignItems:'center',gap:4}}><input className="inp" type="number" min="0" style={{width:92,padding:'6px 8px',fontSize:12}} value={u.rate||0} onChange={e=>setRate(u.id,e.target.value)}/><span className="hint">₫/h</span></label>
             <button className="iconbtn" style={{padding:6,border:0,background:'none'}} onClick={()=>del(u.id)}><i className="ti ti-trash" style={{fontSize:17}}/></button>
@@ -2139,7 +2836,7 @@ function StaffMgr({staff,setStaff,flash}){
         <div style={{display:'flex',gap:8,alignItems:'flex-end',flexWrap:'wrap'}}>
           <label className="fld" style={{flex:1,minWidth:130,marginBottom:0}}><span>Thêm nhân viên</span>
             <input className="inp" value={nf.name} onChange={e=>setNf({...nf,name:e.target.value})} placeholder="Họ tên" onKeyDown={e=>e.key==='Enter'&&add()}/></label>
-          <select className="inp" style={{width:'auto'}} value={nf.role} onChange={e=>setNf({...nf,role:e.target.value})}><option value="staff">NV phục vụ</option><option value="counter">NV quầy</option><option value="manager">Quản lý</option></select>
+          <select className="inp" style={{width:'auto'}} value={nf.role} onChange={e=>setNf({...nf,role:e.target.value})}>{ROLE_KEYS.map(k=><option key={k} value={k}>{ROLES[k].label}</option>)}</select>
           <label style={{display:'flex',alignItems:'center',gap:4}}><input className="inp" type="number" style={{width:92}} value={nf.rate} onChange={e=>setNf({...nf,rate:e.target.value})}/><span className="hint">₫/h</span></label>
           <button className="btn" onClick={add}><i className="ti ti-plus"/>Thêm</button>
         </div>
@@ -2148,20 +2845,30 @@ function StaffMgr({staff,setStaff,flash}){
   );
 }
 function MenuMgr({menu,setMenu,flash}){
-  const [txt,setTxt]=useState({});
-  const addItem=(gi)=>{const val=(txt[gi]||'').trim();if(!val)return;setMenu(v=>v.map((g,i)=>i===gi?{...g,items:[...g.items,val]}:g));setTxt(t=>({...t,[gi]:''}));};
-  const delItem=(gi,item)=>setMenu(v=>v.map((g,i)=>i===gi?{...g,items:g.items.filter(x=>x!==item)}:g));
+  const [txt,setTxt]=useState({});const [pr,setPr]=useState({});
+  const addItem=(gi)=>{const val=(txt[gi]||'').trim();if(!val)return;
+    setMenu(v=>v.map((g,i)=>i===gi?{...g,items:[...g.items,{name:val,price:Number(pr[gi])||0}]}:g));
+    setTxt(t=>({...t,[gi]:''}));setPr(p=>({...p,[gi]:''}));};
+  const delItem=(gi,name)=>setMenu(v=>v.map((g,i)=>i===gi?{...g,items:g.items.filter(x=>x.name!==name)}:g));
+  const setPrice=(gi,name,price)=>setMenu(v=>v.map((g,i)=>i===gi?{...g,items:g.items.map(x=>x.name===name?{...x,price:Number(price)||0}:x)}:g));
   return (
     <div>
+      <p className="hint" style={{marginBottom:10}}>Giá món dùng để tính tiền đồ khi chốt bill bàn.</p>
       {menu.map((g,gi)=>(
         <div className="panel" key={g.grp}>
           <div className="panel-h"><i className="ti ti-tag lead"/><b>{g.grp}</b><span className="chip">{g.items.length} món</span></div>
           <div className="panel-b">
-            <div className="mitems" style={{marginBottom:10}}>
-              {g.items.map(it=><span key={it} className="mitem" style={{cursor:'default'}}>{it}<i className="ti ti-x" style={{fontSize:15,color:'var(--red)',cursor:'pointer'}} onClick={()=>delItem(gi,it)}/></span>)}
-            </div>
-            <div style={{display:'flex',gap:8}}>
+            {g.items.map(it=>(
+              <div className="row" key={it.name}>
+                <div style={{flex:1,minWidth:0,fontWeight:600}}>{it.name}</div>
+                <label style={{display:'flex',alignItems:'center',gap:4}}>
+                  <input className="inp" type="number" style={{width:96,padding:'6px 8px'}} value={it.price||0} onChange={e=>setPrice(gi,it.name,e.target.value)}/><span className="hint">₫</span></label>
+                <button className="iconbtn" style={{padding:6,border:0,background:'none'}} onClick={()=>delItem(gi,it.name)}><i className="ti ti-trash" style={{fontSize:16}}/></button>
+              </div>
+            ))}
+            <div style={{display:'flex',gap:8,marginTop:10}}>
               <input className="inp" value={txt[gi]||''} onChange={e=>setTxt(t=>({...t,[gi]:e.target.value}))} onKeyDown={e=>e.key==='Enter'&&addItem(gi)} placeholder={'Thêm món vào '+g.grp}/>
+              <input className="inp" type="number" style={{width:90}} value={pr[gi]||''} onChange={e=>setPr(p=>({...p,[gi]:e.target.value}))} onKeyDown={e=>e.key==='Enter'&&addItem(gi)} placeholder="Giá"/>
               <button className="btn" onClick={()=>addItem(gi)}><i className="ti ti-plus"/></button>
             </div>
           </div>
@@ -2354,8 +3061,9 @@ function PenaltyPayroll({penaltyRules,setPenaltyRules,violations,attend,staff,fl
 
 /* ================= Nhân viên quầy ================= */
 function CounterView({s}){
-  const {orders,setOrders,outfood,setOutfood,alerts,setAlerts,me,flash}=s;
+  const {orders,setOrders,outfood,setOutfood,alerts,setAlerts,bookings,setBookings,me,flash}=s;
   const openAlerts=alerts.filter(a=>a.status==='open'&&!alertExpired(a)&&alertFor(a,'counter'));
+  const pendBook=bookings.filter(b=>b.status==='pending').length;
   // Có yêu cầu dành cho quầy → mở thẳng tab Yêu cầu để tắt tiền giờ kịp
   const [tab,setTab]=useState(()=>openAlerts.length>0?'alerts':'orders'); // orders | alerts | outfood
   const serve=(id)=>setOrders(v=>v.map(o=>o.id===id?{...o,status:'done',doneTs:Date.now()}:o));
@@ -2367,9 +3075,11 @@ function CounterView({s}){
       <div className="seg">
         <button className={tab==='orders'?'on':''} onClick={()=>setTab('orders')}><i className="ti ti-clipboard-list"/>Order bàn {pending.length>0&&`(${pending.length})`}</button>
         <button className={tab==='alerts'?'on':''} onClick={()=>setTab('alerts')}><i className="ti ti-bell-ringing"/>Yêu cầu {openAlerts.length>0&&`(${openAlerts.length})`}</button>
+        <button className={tab==='book'?'on':''} onClick={()=>setTab('book')}><i className="ti ti-calendar-event"/>Đặt bàn {pendBook>0&&`(${pendBook})`}</button>
         <button className={tab==='outfood'?'on':''} onClick={()=>setTab('outfood')}><i className="ti ti-tools-kitchen-2"/>Gọi món ngoài</button>
       </div>
       {tab==='alerts'&&<AlertsPanel alerts={alerts} setAlerts={setAlerts} me={me} role="counter" flash={flash}/>}
+      {tab==='book'&&<BookingsPanel bookings={bookings} setBookings={setBookings} me={me} flash={flash}/>}
       {tab==='orders'&&(
         <div>
           {pending.length===0&&done.length===0&&<Empty icon="ti-clipboard-off" text="Chưa có order nào từ các bàn"/>}
@@ -2426,12 +3136,31 @@ function InventoryView({s}){
   const setQty=(id,qty)=>setInventory(v=>v.map(i=>i.id===id?{...i,qty:Math.max(0,Number(qty)||0)}:i));
   const step=(id,d)=>setInventory(v=>v.map(i=>i.id===id?{...i,qty:Math.max(0,(i.qty||0)+d)}:i));
   const low=inventory.filter(i=>i.min>0&&i.qty<=i.min);
+  const needList=inventory.filter(i=>i.need);
+  const toggleNeed=(id)=>setInventory(v=>v.map(i=>i.id===id?{...i,need:!i.need}:i));
   return (
     <div>
       <div className="grid-stat">
         <div className="stat"><div className="ic g"><i className="ti ti-box-seam"/></div><div className="n">{inventory.length}</div><div className="l">Mặt hàng</div></div>
         <div className="stat"><div className="ic r"><i className="ti ti-alert-triangle"/></div><div className="n">{low.length}</div><div className="l">Sắp hết</div></div>
+        <div className="stat"><div className="ic a"><i className="ti ti-shopping-cart"/></div><div className="n">{needList.length}</div><div className="l">Cần mua / thay</div></div>
       </div>
+
+      {needList.length>0&&(
+        <div className="panel">
+          <div className="panel-h"><i className="ti ti-shopping-cart lead" style={{color:'var(--amber)'}}/><b>Cần mua / thay thế</b><span className="chip a">{needList.length}</span></div>
+          <div className="panel-b" style={{paddingTop:6}}>
+            {needList.map(i=>(
+              <div className="row" key={i.id}>
+                <div style={{flex:1,minWidth:0}}><div style={{fontWeight:600}}>{i.name}</div>
+                  <div className="hint">còn {i.qty} {i.unit}{i.min>0?` · tối thiểu ${i.min}`:''}</div></div>
+                <button className="btn sm" onClick={()=>toggleNeed(i.id)}><i className="ti ti-check"/>Đã mua</button>
+              </div>
+            ))}
+            <p className="hint" style={{marginTop:8}}>Danh sách này để báo quản lý mua bổ sung / thay mới.</p>
+          </div>
+        </div>
+      )}
       <div className="panel">
         <div className="panel-h"><i className="ti ti-clipboard-check lead"/><b>Kiểm kho</b><span className="hint">bởi {me.name.split(' ').slice(-1)[0]}</span></div>
         <div className="panel-b" style={{paddingTop:6}}>
@@ -2445,6 +3174,7 @@ function InventoryView({s}){
                 <input className="inp" type="number" value={i.qty} onChange={e=>setQty(i.id,e.target.value)} style={{width:56,textAlign:'center',padding:'6px'}}/>
                 <button onClick={()=>step(i.id,1)}>+</button>
               </div>
+              <button className={'btn sm '+(i.need?'':'ghost')} onClick={()=>toggleNeed(i.id)} title="Báo cần mua/thay"><i className="ti ti-shopping-cart"/>{i.need?'Cần mua':'Báo mua'}</button>
               <button className="iconbtn" style={{padding:6,border:0,background:'none'}} onClick={()=>del(i.id)}><i className="ti ti-trash" style={{fontSize:16}}/></button>
             </div>
           );})}
@@ -2464,16 +3194,18 @@ function InventoryView({s}){
 }
 
 /* ================= App cho KHÁCH HÀNG ================= */
-function CustomerApp({cust,tables,menu,orders,setOrders,promos,customers,setCustomers,feedback,setFeedback,alerts,setAlerts,broadcasts,cloud,dark,setDark,onLogout,flash}){
+function CustomerApp({cust,tables,menu,orders,setOrders,promos,customers,setCustomers,feedback,setFeedback,alerts,setAlerts,tours,signups,setSignups,bookings,setBookings,broadcasts,cloud,dark,setDark,onLogout,flash}){
   const [view,setView]=useState('order');
   const [readBc,setReadBc]=usePersist('ps.readBc',[]);
   const myOrders=orders.filter(o=>o.by===('c:'+cust.id)).slice(0,20);
   const unread=(broadcasts||[]).filter(b=>!readBc.includes(b.id)).length;
   useEffect(()=>{ if(view==='noti'&&unread>0) setReadBc((broadcasts||[]).map(b=>b.id)); },[view,broadcasts]);
-  const NAV=[{id:'order',label:'Đặt món',icon:'ti-glass-full'},{id:'points',label:'Điểm',icon:'ti-star'},
-    {id:'noti',label:'Thông báo',icon:'ti-bell',badge:unread},{id:'fb',label:'Góp ý',icon:'ti-message-2'}];
-  const TITLES={order:['Đặt món','Chọn bàn & gọi đồ'],points:['Điểm của tôi','Tích luỹ & ưu đãi'],
-    noti:['Thông báo','Khuyến mãi & giải đấu'],fb:['Góp ý','Đánh giá quán']};
+  const myBook=bookings.filter(b=>b.custId===cust.id);
+  const bookNews=myBook.filter(b=>b.status!=='pending'&&b.decidedTs&&Date.now()-b.decidedTs<86400000).length;
+  const NAV=[{id:'order',label:'Đặt món',icon:'ti-glass-full'},{id:'book',label:'Đặt bàn',icon:'ti-calendar-event',badge:bookNews},
+    {id:'tour',label:'Giải đấu',icon:'ti-trophy'},{id:'points',label:'Điểm',icon:'ti-star'},{id:'fb',label:'Góp ý',icon:'ti-message-2'}];
+  const TITLES={order:['Đặt món','Chọn bàn & gọi đồ'],book:['Đặt bàn','Giữ bàn trước'],tour:['Giải đấu','Sắp diễn ra & đăng ký'],
+    points:['Điểm của tôi','Tích luỹ & ưu đãi'],noti:['Thông báo','Khuyến mãi & giải đấu'],fb:['Góp ý','Đánh giá quán']};
   const t=TITLES[view];
   return (
     <div className="app">
@@ -2482,11 +3214,15 @@ function CustomerApp({cust,tables,menu,orders,setOrders,promos,customers,setCust
           <div><h1>{t[0]}</h1><div className="sub">Xin chào, {cust.name} · {t[1]}</div></div>
           <div className="spacer"/>
           <CloudDot status={cloud}/>
+          <button className="iconbtn" onClick={()=>setView('noti')} title="Thông báo">
+            <i className="ti ti-bell"/>{unread>0&&<span className="dot">{unread}</span>}</button>
           <button className="iconbtn" onClick={()=>setDark(!dark)}><i className={'ti '+(dark?'ti-sun':'ti-moon')}/></button>
           <button className="iconbtn" onClick={onLogout} title="Đăng xuất"><i className="ti ti-logout"/></button>
         </header>
         <div className="content">
           {view==='order'&&<CustOrder cust={cust} tables={tables} menu={menu} promos={promos} orders={myOrders} setOrders={setOrders} alerts={alerts} setAlerts={setAlerts} flash={flash}/>}
+          {view==='book'&&<CustBooking cust={cust} tables={tables} bookings={myBook} setBookings={setBookings} flash={flash}/>}
+          {view==='tour'&&<CustTours cust={cust} tours={tours} signups={signups} setSignups={setSignups} flash={flash}/>}
           {view==='points'&&<CustPoints cust={cust} promos={promos}/>}
           {view==='noti'&&<CustNoti broadcasts={broadcasts}/>}
           {view==='fb'&&<CustFeedback cust={cust} setFeedback={setFeedback} flash={flash}/>}
@@ -2520,6 +3256,109 @@ function CustNoti({broadcasts}){
     </div>
   );
 }
+function CustBooking({cust,tables,bookings,setBookings,flash}){
+  const types=[...new Set(tables.map(t=>t.type).filter(Boolean))];
+  const [f,setF]=useState(()=>({date:today(),time:'19:00',hours:2,people:2,tableType:types[0]||'Tiêu chuẩn',note:''}));
+  const priceOf=(ty)=>{const t=tables.find(x=>x.type===ty);return t?t.price:0;};
+  const est=(Number(f.hours)||0)*priceOf(f.tableType);
+  const send=()=>{
+    if(!f.date||!f.time){flash('Chọn ngày & giờ');return;}
+    if(f.date<today()){flash('Không đặt được ngày đã qua');return;}
+    setBookings(v=>[{id:uid(),custId:cust.id,custName:cust.name,phone:cust.phone||'',date:f.date,time:f.time,
+      hours:Number(f.hours)||1,people:Number(f.people)||1,tableType:f.tableType,note:f.note.trim(),
+      status:'pending',ts:Date.now()},...v]);
+    setF({...f,note:''});flash('Đã gửi yêu cầu đặt bàn — quán sẽ xác nhận sớm ⏳');
+  };
+  const cancel=(id)=>{if(confirm('Huỷ yêu cầu đặt bàn này?'))setBookings(v=>v.filter(b=>b.id!==id));};
+  const mine=[...bookings].sort((a,b)=>b.ts-a.ts);
+  return (
+    <div>
+      <div className="panel">
+        <div className="panel-h"><i className="ti ti-calendar-plus lead"/><b>Đặt bàn trước</b></div>
+        <div className="panel-b">
+          <div style={{display:'flex',gap:9,flexWrap:'wrap'}}>
+            <label className="fld" style={{flex:1,minWidth:130}}><span>Ngày</span><input className="inp" type="date" min={today()} value={f.date} onChange={e=>setF({...f,date:e.target.value})}/></label>
+            <label className="fld" style={{width:110}}><span>Giờ tới</span><input className="inp" type="time" value={f.time} onChange={e=>setF({...f,time:e.target.value})}/></label>
+          </div>
+          <div style={{display:'flex',gap:9,flexWrap:'wrap'}}>
+            <label className="fld" style={{flex:1,minWidth:100}}><span>Số giờ chơi</span><input className="inp" type="number" min="1" max="12" value={f.hours} onChange={e=>setF({...f,hours:e.target.value})}/></label>
+            <label className="fld" style={{flex:1,minWidth:100}}><span>Số người</span><input className="inp" type="number" min="1" max="20" value={f.people} onChange={e=>setF({...f,people:e.target.value})}/></label>
+          </div>
+          <label className="fld"><span>Loại bàn</span>
+            <div className="rowbtns">{types.map(ty=>(
+              <button key={ty} className={'btn sm '+(f.tableType===ty?'':'ghost')} onClick={()=>setF({...f,tableType:ty})}>{ty} · {fmtVnd(priceOf(ty))}/h</button>
+            ))}</div>
+          </label>
+          <label className="fld"><span>Ghi chú</span><input className="inp" value={f.note} onChange={e=>setF({...f,note:e.target.value})} placeholder="VD: cần bàn gần cửa sổ"/></label>
+          {est>0&&<div className="chip g" style={{marginBottom:10}}>Tạm tính tiền bàn: {fmtVnd(est)}</div>}
+          <button className="btn block wide" onClick={send}><i className="ti ti-send"/>Gửi yêu cầu đặt bàn</button>
+          <p className="hint" style={{marginTop:8}}>Quán sẽ xác nhận hoặc báo lại nếu kín bàn. Kết quả hiện ngay bên dưới.</p>
+        </div>
+      </div>
+      <div className="panel">
+        <div className="panel-h"><i className="ti ti-history lead"/><b>Đặt bàn của tôi</b></div>
+        <div className="panel-b" style={{paddingTop:6}}>
+          {mine.length===0&&<Empty icon="ti-calendar-off" text="Bạn chưa đặt bàn lần nào"/>}
+          {mine.map(b=>{const st=BK_ST[b.status]||BK_ST.pending;return (
+            <div className="row" key={b.id}>
+              <span style={{fontSize:20}}>📅</span>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontWeight:600}}>{fmtDateVN(b.date)} · {b.time} · {b.hours}h</div>
+                <div className="hint">{b.tableType} · {b.people} người{b.reason?' · '+b.reason:''}</div>
+              </div>
+              <span className={'chip '+st.chip}>{st.label}</span>
+              {b.status==='pending'&&<button className="iconbtn" style={{padding:6,border:0,background:'none'}} onClick={()=>cancel(b.id)}><i className="ti ti-trash" style={{fontSize:16}}/></button>}
+            </div>
+          );})}
+        </div>
+      </div>
+    </div>
+  );
+}
+function CustTours({cust,tours,signups,setSignups,flash}){
+  const up=[...tours].filter(t=>!t.date||t.date>=today()).sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  const past=[...tours].filter(t=>t.date&&t.date<today()).sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,5);
+  const regOf=(t)=>signups.filter(s=>s.tourId===t.id);
+  const mine=(t)=>signups.find(s=>s.tourId===t.id&&s.custId===cust.id);
+  const join=(t)=>{
+    const regs=regOf(t);
+    if(regs.length>=(Number(t.players)||0)){flash('Giải đã đủ người rồi 😢');return;}
+    setSignups(v=>[{id:uid(),tourId:t.id,custId:cust.id,custName:cust.name,phone:cust.phone||'',checkedIn:false,paid:false,ts:Date.now()},...v]);
+    flash('Đăng ký thành công! Tới quán đóng lệ phí nhé 🏆');
+  };
+  const leave=(t)=>{const m=mine(t);if(!m)return;if(confirm('Huỷ đăng ký giải này?')){setSignups(v=>v.filter(x=>x.id!==m.id));flash('Đã huỷ đăng ký');}};
+  const card=(t,isPast)=>{
+    const regs=regOf(t);const slots=Number(t.players)||0;const me=mine(t);const full=regs.length>=slots;
+    return (
+      <div className="card" key={t.id} style={{marginBottom:11,borderLeft:'4px solid '+(isPast?'var(--border)':'var(--amber)')}}>
+        <div style={{display:'flex',alignItems:'flex-start',gap:8,marginBottom:6}}>
+          <span style={{fontSize:22}}>🏆</span>
+          <b style={{flex:1,fontSize:15,fontFamily:'"Baloo 2"'}}>{t.name}</b>
+          {me&&!isPast&&<span className="chip gr"><i className="ti ti-check"/>Đã đăng ký</span>}
+        </div>
+        <div className="hint"><i className="ti ti-calendar"/> {t.date?fmtDateVN(t.date):'—'}{t.time?' · '+t.time:''} · {t.mode||'8 bi'}</div>
+        <div className="hint"><i className="ti ti-tournament"/> {TOUR_FORMATS[t.format]||'—'} · race to {t.raceTo}</div>
+        <div className="hint" style={{marginBottom:10}}><i className="ti ti-users"/> {regs.length}/{slots} người{full&&!me?' · ĐÃ ĐỦ':''}</div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,textAlign:'center',marginBottom:10}}>
+          <div style={{background:'var(--bg)',borderRadius:10,padding:'8px 4px'}}><div className="hint">Lệ phí</div><b style={{fontFamily:'"Baloo 2"'}}>{fmtVnd(t.entryFee)}</b></div>
+          <div style={{background:'var(--amber-lt)',borderRadius:10,padding:'8px 4px'}}><div className="hint">Giải thưởng</div><b style={{fontFamily:'"Baloo 2"',color:'var(--amber)'}}>{fmtVnd(t.prizePool)}</b></div>
+        </div>
+        {!isPast&&(me
+          ? <button className="btn ghost block" onClick={()=>leave(t)}><i className="ti ti-x"/>Huỷ đăng ký</button>
+          : <button className="btn block wide" disabled={full} onClick={()=>join(t)}><i className="ti ti-user-plus"/>{full?'Đã đủ người':'Đăng ký thi đấu'}</button>)}
+      </div>
+    );
+  };
+  return (
+    <div>
+      {up.length===0&&past.length===0&&<Empty icon="ti-trophy" text="Chưa có giải nào. Theo dõi thông báo của quán nhé!"/>}
+      {up.length>0&&<div style={{fontSize:13,fontWeight:700,color:'var(--amber)',margin:'2px 2px 10px'}}><i className="ti ti-flame"/> Sắp diễn ra ({up.length})</div>}
+      {up.map(t=>card(t,false))}
+      {past.length>0&&<div style={{fontSize:13,fontWeight:700,color:'var(--muted)',margin:'16px 2px 10px'}}>Đã tổ chức</div>}
+      {past.map(t=>card(t,true))}
+    </div>
+  );
+}
 function qrTableNo(){ try{ return new URLSearchParams(location.search).get('table'); }catch(e){ return null; } }
 function CustOrder({cust,tables,menu,promos,orders,setOrders,alerts,setAlerts,flash}){
   const qrNo=qrTableNo();
@@ -2533,13 +3372,14 @@ function CustOrder({cust,tables,menu,promos,orders,setOrders,alerts,setAlerts,fl
   useEffect(()=>{ if(qrNo&&!qrDone.current){ const id=findQr(tables); if(id){setSel(id);qrDone.current=true;} } },[tables]);
   const live=(promos||[]).filter(promoActive);
   const count=Object.values(cart).reduce((a,b)=>a+b,0);
+  const cartTotal=Object.entries(cart).reduce((a,[n,q])=>a+q*priceOfItem(menu,n),0);
   const add=n=>setCart(c=>({...c,[n]:(c[n]||0)+1}));
   const dec=n=>setCart(c=>{const q=(c[n]||0)-1;const nc={...c};if(q<=0)delete nc[n];else nc[n]=q;return nc;});
   const send=()=>{
     if(!sel){flash('Chọn bàn bạn đang ngồi');return;}
     if(count===0){flash('Chọn món đã nhé');return;}
     const tbl=tables.find(t=>t.id===sel);
-    const items=Object.entries(cart).map(([name,qty])=>({name,qty}));
+    const items=Object.entries(cart).map(([name,qty])=>({name,qty,price:priceOfItem(menu,name)}));
     setOrders(v=>[{id:uid(),table:tbl.no,items,note:note.trim(),by:'c:'+cust.id,byName:cust.name,source:'customer',status:'pending',ts:Date.now()},...v]);
     setCart({});setNote('');flash('Đã gửi order về quầy, nhân viên mang ra ngay 🎱'); // giữ nguyên bàn đang ngồi
   };
@@ -2610,8 +3450,9 @@ function CustOrder({cust,tables,menu,promos,orders,setOrders,alerts,setAlerts,fl
             <div className="menugrp" key={g.grp}>
               <div className="gh">{g.grp}</div>
               <div className="mitems">
-                {g.items.map(n=>(
-                  <button key={n} className="mitem" onClick={()=>add(n)}>{cart[n]>0&&<span className="q">{cart[n]}</span>}{n}</button>
+                {g.items.map(it=>(
+                  <button key={it.name} className="mitem" onClick={()=>add(it.name)}>{cart[it.name]>0&&<span className="q">{cart[it.name]}</span>}{it.name}
+                    <em style={{fontStyle:'normal',fontSize:11,color:'var(--muted)',fontWeight:600}}>{fmtVnd(it.price)}</em></button>
                 ))}
               </div>
             </div>
@@ -2623,15 +3464,20 @@ function CustOrder({cust,tables,menu,promos,orders,setOrders,alerts,setAlerts,fl
           <div className="panel-h"><i className="ti ti-shopping-cart lead"/><b>Đơn của bạn</b></div>
           <div className="panel-b">
             {Object.entries(cart).map(([n,q])=>(
-              <div className="row" key={n}><div style={{flex:1,fontWeight:600}}>{n}</div>
+              <div className="row" key={n}><div style={{flex:1,minWidth:0}}><div style={{fontWeight:600}}>{n}</div>
+                <div className="hint">{fmtVnd(priceOfItem(menu,n))} × {q} = <b>{fmtVnd(q*priceOfItem(menu,n))}</b></div></div>
                 <div className="stepper"><button onClick={()=>dec(n)}>−</button><b>{q}</b><button onClick={()=>add(n)}>+</button></div></div>
             ))}
+            <div className="row" style={{borderTop:'2px solid var(--border)'}}>
+              <span style={{flex:1,fontWeight:700}}>Tạm tính</span>
+              <b style={{fontFamily:'"Baloo 2"',fontSize:18,color:'var(--g)'}}>{fmtVnd(cartTotal)}</b>
+            </div>
             <label className="fld" style={{marginTop:12}}><span>Ghi chú (ít đá, không đường…)</span><input className="inp" value={note} onChange={e=>setNote(e.target.value)} placeholder="Tuỳ chọn"/></label>
           </div>
         </div>
       )}
       <button className="btn wide block" onClick={send} disabled={!sel||count===0} style={{marginBottom:16}}>
-        <i className="ti ti-send"/>Gửi order{sel?` · Bàn ${tables.find(t=>t.id===sel).no}`:''}{count>0?` · ${count} món`:''}
+        <i className="ti ti-send"/>Gửi order{sel?` · Bàn ${tables.find(t=>t.id===sel).no}`:''}{count>0?` · ${count} món · ${fmtVnd(cartTotal)}`:''}
       </button>
 
       {orders.length>0&&(
