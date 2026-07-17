@@ -315,7 +315,7 @@ function usePersist(key,initial){
 */
 const SB_URL='https://ltmlueqkajqmduoqghdf.supabase.co';
 const SB_KEY='sb_publishable_74Lm6cc0CkoOOzy3A4IRrQ_BX0jHQcg';
-const CLOUD_ARRAYS={orders:'ps_orders',feedback:'ps_feedback',customers:'ps_customers',broadcasts:'ps_broadcasts'};
+const CLOUD_ARRAYS={orders:'ps_orders',feedback:'ps_feedback',customers:'ps_customers',broadcasts:'ps_broadcasts',alerts:'ps_alerts'};
 const Cloud={
   sb:null,enabled:false,status:'off',onStatus:null,
   init(){
@@ -409,8 +409,14 @@ const SEED_ENDTASKS=[
   {id:uid(),text:'Chốt đồ uống của bàn & thu tiền đủ'},
   {id:uid(),text:'Cộng điểm tích luỹ cho khách quen'},
 ];
-const FB_GOOD=['Nhân viên thân thiện','Bàn/nỉ đẹp','Phục vụ nhanh','Đồ uống ngon','Giá hợp lý','Sạch sẽ, thoáng'];
-const FB_BAD=['Phục vụ chậm','Bàn/bi chưa sạch','Đồ uống chưa ngon','Giá hơi cao','Ồn / đông','Thái độ chưa tốt'];
+const FB_GOOD=['Nhân viên thân thiện','Bàn/nỉ đẹp','Phục vụ nhanh','Đồ ăn ngon','Nhạc hay','Giá hợp lý','Sạch sẽ, thoáng'];
+const FB_BAD=['Đồ ăn ra chậm','Đồ ăn chưa ngon','Nhạc chưa hay','Bàn thiếu lết','Bàn/bi chưa sạch','Phục vụ chậm','Thái độ chưa tốt','Ồn / đông','Giá hơi cao','Khác'];
+// Yêu cầu tại bàn (khách gọi nhân viên / nhân viên báo quầy)
+const ALERT_KINDS={
+  end:    {label:'Khách báo đã chơi xong',icon:'🏁',chip:'r',hint:'Ra tắt bàn & chốt tiền giờ'},
+  rack:   {label:'Khách xin xếp bi',      icon:'🎱',chip:'b',hint:'Ra xếp bi cho khách'},
+  billoff:{label:'Đã dọn xong bàn',       icon:'🧹',chip:'a',hint:'Quầy tắt tiền giờ bàn này'},
+};
 const FB_RATING={good:{label:'Hài lòng',icon:'😃',chip:'gr'},ok:{label:'Bình thường',icon:'😐',chip:'a'},bad:{label:'Chưa hài lòng',icon:'😞',chip:'r'}};
 const SEED_MENU=[
   {grp:'Nước', items:['Trà đá','Trà chanh','Nước suối','Sting','Red Bull','Coca','Pepsi','Cà phê đen','Cà phê sữa','Bia Hà Nội','Bia Tiger','Nước cam']},
@@ -501,13 +507,26 @@ const SEED_CUSTOMERS=[
 ];
 const SHIFT_TIME={morning:{label:'Sáng',start:'08:00',end:'16:00',icon:'☀️'},evening:{label:'Tối',start:'16:00',end:'24:00',icon:'🌙'}};
 const GAME_MODES=['8 bi','9 bi','10 bi'];
+// Ưu đãi đẩy doanh số khung giờ vắng 8h–15h
+const PROMO_DAYTIME={id:'promo_daytime',title:'Ưu đãi khung giờ 8h–15h',
+  desc:'Giảm 30% tiền bàn + tặng trà đá cả bàn khi chơi khung 8h–15h. Chơi từ 2 giờ tặng thêm 1 giờ.',
+  percent:30,hourStart:'08:00',hourEnd:'15:00',start:'',end:'',active:true};
 const SEED_PROMOS=[
-  {id:uid(),title:'Giờ vàng buổi trưa',desc:'Giảm 20% tiền bàn khung 11h–14h các ngày trong tuần.',percent:20,start:'',end:'',active:true},
-  {id:uid(),title:'Combo nhóm 4 người',desc:'Nhóm từ 4 khách: tặng 1 bình trà + 4 nước suối.',percent:0,start:'',end:'',active:true},
-  {id:uid(),title:'Sinh nhật tháng',desc:'Khách có sinh nhật trong tháng được tặng 1 giờ chơi miễn phí (xuất trình CCCD).',percent:0,start:'',end:'',active:false},
+  PROMO_DAYTIME,
+  {id:uid(),title:'Combo nhóm 4 người',desc:'Nhóm từ 4 khách: tặng 1 bình trà + 4 nước suối.',percent:0,hourStart:'',hourEnd:'',start:'',end:'',active:true},
+  {id:uid(),title:'Sinh nhật tháng',desc:'Khách có sinh nhật trong tháng được tặng 1 giờ chơi miễn phí (xuất trình CCCD).',percent:0,hourStart:'',hourEnd:'',start:'',end:'',active:false},
 ];
 const fmtVnd=n=>{const v=Math.round(n||0);return v.toLocaleString('vi-VN')+'₫';};
-const promoActive=p=>{ if(!p.active)return false; const t=today(); if(p.start&&t<p.start)return false; if(p.end&&t>p.end)return false; return true; };
+// Đang trong khung giờ áp dụng? (hỗ trợ khung qua đêm, vd 22:00–02:00)
+const promoInHours=p=>{
+  if(!p.hourStart||!p.hourEnd)return true;
+  const n=nowHM();
+  return p.hourStart<=p.hourEnd ? (n>=p.hourStart&&n<=p.hourEnd) : (n>=p.hourStart||n<=p.hourEnd);
+};
+// Đã bật + đúng ngày (chưa xét khung giờ)
+const promoScheduled=p=>{ if(!p.active)return false; const t=today(); if(p.start&&t<p.start)return false; if(p.end&&t>p.end)return false; return true; };
+// Đang chạy ngay lúc này (xét cả khung giờ)
+const promoActive=p=>promoScheduled(p)&&promoInHours(p);
 const monthOf=s=>(s||'').slice(0,7); // 'YYYY-MM'
 const thisMonth=()=>today().slice(0,7);
 const SEED_PENALTY=[
@@ -576,6 +595,8 @@ function App(){
   const [inventory,setInventory]=usePersist('ps.inventory',[]);
   const [endTasks,setEndTasks]=usePersist('ps.endTasks',SEED_ENDTASKS);
   const [broadcasts,setBroadcasts]=usePersist('ps.broadcasts',[]);
+  const [alerts,setAlerts]=usePersist('ps.alerts',[]);
+  const [fbSeen,setFbSeen]=usePersist('ps.fbSeen',0);
   const [meId,setMeId]=usePersist('ps.me',null);
   const [dark,setDark]=useState(()=>store.get('ps.dark',false)===true||localStorage.getItem('ps.dark')==='1');
   const [view,setView]=useState('order');
@@ -585,7 +606,7 @@ function App(){
   useEffect(()=>{document.body.classList.toggle('dark',dark);store.set('ps.dark',dark);},[dark]);
   // Cập nhật dữ liệu mẫu khi cấu trúc đổi (prototype): giữ dữ liệu vận hành & chỉnh sửa của người dùng
   useEffect(()=>{
-    const V=4;
+    const V=5;
     const cur=store.get('ps.seedVer',1);
     if(cur<V){
       if(cur<2){ // bỏ Phăng
@@ -597,6 +618,11 @@ function App(){
       setStaff(prev=>prev.map(s=>({rate:22000,...s,role:['manager','counter','staff'].includes(s.role)?s.role:'staff'})));
       // v4: bàn có loại + giá, nâng lên 20 bàn (làm mới nếu bàn cũ chưa có giá)
       if(cur<4){ if(store.get('ps.tables',[]).some(t=>t.price==null)) setTables(SEED_TABLES); }
+      // v5: khuyến mãi có khung giờ — thêm ưu đãi 8h–15h, bỏ seed "Giờ vàng buổi trưa" cũ (đã bị thay)
+      if(cur<5) setPromos(prev=>{
+        const rest=prev.filter(p=>p.title!=='Giờ vàng buổi trưa');
+        return rest.some(p=>p.id===PROMO_DAYTIME.id)?rest:[PROMO_DAYTIME,...rest];
+      });
       store.set('ps.seedVer',V);
     }
   },[]);
@@ -613,6 +639,7 @@ function App(){
   const setFeedbackC=cloudArr(setFeedback,'ps_feedback');
   const setCustomersC=cloudArr(setCustomers,'ps_customers');
   const setBroadcastsC=cloudArr(setBroadcasts,'ps_broadcasts');
+  const setAlertsC=cloudArr(setAlerts,'ps_alerts');
   const setMenuC=cloudKv(setMenu,'menu');
   const setTablesC=cloudKv(setTables,'tables');
   const setPromosC=cloudKv(setPromos,'promos');
@@ -635,6 +662,7 @@ function App(){
         setOrders(d.orders||[]);
         setFeedback(d.feedback||[]);
         setBroadcasts(d.broadcasts||[]);
+        setAlerts(d.alerts||[]);
         if(d.customers&&d.customers.length)setCustomers(d.customers);
         else (L.customers||[]).forEach(c=>Cloud.upsertRow('ps_customers',c));
         if(d.kv.menu)setMenu(d.kv.menu); else Cloud.setKv('menu',L.menu);
@@ -645,6 +673,7 @@ function App(){
         subs.push(Cloud.subscribe('ps_feedback',p=>applyRealtime(setFeedback,p)));
         subs.push(Cloud.subscribe('ps_customers',p=>applyRealtime(setCustomers,p)));
         subs.push(Cloud.subscribe('ps_broadcasts',p=>applyRealtime(setBroadcasts,p)));
+        subs.push(Cloud.subscribe('ps_alerts',p=>applyRealtime(setAlerts,p)));
         subs.push(Cloud.sb.channel('rt_ps_kv').on('postgres_changes',{event:'*',schema:'public',table:'ps_kv'},p=>{
           const row=p.new; if(!row||!row.k)return;
           if(row.k==='menu')setMenu(row.v); else if(row.k==='tables')setTables(row.v); else if(row.k==='promos')setPromos(row.v);
@@ -662,6 +691,8 @@ function App(){
   const isManager=me&&me.role==='manager';
   const isCounter=me&&me.role==='counter';
   const pendingCount=orders.filter(o=>o.status==='pending').length;
+  const openAlerts=alerts.filter(a=>a.status==='open').length;
+  const newFb=feedback.filter(f=>f.ts>(fbSeen||0)).length; // góp ý mới cho quản lý
 
   const NAV_BY_ROLE={
     manager:['order','tasks','train','attend','cust','manage'],
@@ -681,6 +712,7 @@ function App(){
     }
     return <CustomerApp cust={custMe} tables={tables} menu={menu} orders={orders} setOrders={setOrdersC}
       promos={promos} customers={customers} setCustomers={setCustomersC} feedback={feedback} setFeedback={setFeedbackC}
+      alerts={alerts} setAlerts={setAlertsC}
       broadcasts={broadcasts} cloud={cloud} dark={dark} setDark={setDark} onLogout={()=>setMeId(null)} flash={flash}/>;
   }
   if(!me) return <Login staff={staff} onPick={setMeId} customers={customers} setCustomers={setCustomersC} onCust={setMeId} cloud={cloud}/>;
@@ -691,16 +723,16 @@ function App(){
     customers,setCustomers:setCustomersC,promos,setPromos:setPromosC,tours,setTours,
     feedback,setFeedback:setFeedbackC,penaltyRules,setPenaltyRules,
     violations,setViolations,outfood,setOutfood,inventory,setInventory,endTasks,setEndTasks,
-    broadcasts,setBroadcasts:setBroadcastsC,cloud,flash};
+    broadcasts,setBroadcasts:setBroadcastsC,alerts,setAlerts:setAlertsC,fbSeen,setFbSeen,cloud,flash};
 
   const NAV_DEF={
-    order:{label:'Báo món',icon:'ti-glass-full',badge:pendingCount},
-    counter:{label:'Quầy',icon:'ti-cash-register',badge:pendingCount},
+    order:{label:'Báo món',icon:'ti-glass-full',badge:pendingCount+openAlerts},
+    counter:{label:'Quầy',icon:'ti-cash-register',badge:pendingCount+openAlerts},
     inventory:{label:'Kiểm kho',icon:'ti-box-seam'},
     tasks:{label:'Đầu việc',icon:'ti-checklist'},
     train:{label:'Đào tạo',icon:'ti-school'},
     attend:{label:'Chấm công',icon:'ti-clock-hour-4'},
-    cust:{label:'Khách',icon:'ti-users'},
+    cust:{label:'Khách',icon:'ti-users',badge:isManager?newFb:0},
     manage:{label:'Quản lý',icon:'ti-briefcase'},
   };
   const navItems=(NAV_BY_ROLE[me.role]||NAV_BY_ROLE.staff).map(id=>({id,...NAV_DEF[id]}));
@@ -817,9 +849,12 @@ function Login({staff,onPick,customers,setCustomers,onCust}){
 
 /* ================= 1. Order ================= */
 function OrderView({s}){
-  const {tables,menu,setMenu,orders,setOrders,me,promos,endTasks,flash}=s;
-  const [tab,setTab]=useState('new'); // new | queue
+  const {tables,menu,setMenu,orders,setOrders,me,promos,endTasks,alerts,setAlerts,flash}=s;
+  const [tab,setTab]=useState('new'); // new | queue | alerts
   const [endOpen,setEndOpen]=useState(false);
+  const openAlerts=alerts.filter(a=>a.status==='open').length;
+  // Dọn xong bàn → báo quầy tắt tiền giờ
+  const billOff=(tableNo)=>setAlerts(v=>[{id:uid(),kind:'billoff',table:tableNo,by:me.id,byName:me.name,source:'staff',status:'open',ts:Date.now()},...v]);
   const [sel,setSel]=useState(null); // table id
   const [cart,setCart]=useState({}); // name -> qty
   const [note,setNote]=useState('');
@@ -877,6 +912,7 @@ function OrderView({s}){
       <div className="seg">
         <button className={tab==='new'?'on':''} onClick={()=>setTab('new')}><i className="ti ti-plus"/>Tạo order</button>
         <button className={tab==='queue'?'on':''} onClick={()=>setTab('queue')}><i className="ti ti-clipboard-list"/>Quầy chờ {pending.length>0&&`(${pending.length})`}</button>
+        <button className={tab==='alerts'?'on':''} onClick={()=>setTab('alerts')}><i className="ti ti-bell-ringing"/>Yêu cầu {openAlerts>0&&`(${openAlerts})`}</button>
       </div>
 
       {tab==='new'&&(
@@ -968,18 +1004,19 @@ function OrderView({s}){
           {done.map(o=><OrderCard key={o.id} o={o} done/>)}
         </div>
       )}
-      {endOpen&&<EndTableModal tables={tables} endTasks={endTasks} onClose={()=>setEndOpen(false)} flash={flash}/>}
+      {tab==='alerts'&&<AlertsPanel alerts={alerts} setAlerts={setAlerts} me={me} flash={flash}/>}
+      {endOpen&&<EndTableModal tables={tables} endTasks={endTasks} onBillOff={billOff} onClose={()=>setEndOpen(false)} flash={flash}/>}
     </div>
   );
 }
-function EndTableModal({tables,endTasks,onClose,flash}){
+function EndTableModal({tables,endTasks,onBillOff,onClose,flash}){
   const [sel,setSel]=useState(null);
   const [done,setDone]=useState({});
   const tbl=tables.find(t=>t.id===sel);
   const toggle=(id)=>setDone(v=>({...v,[id]:!v[id]}));
   const doneCount=endTasks.filter(t=>done[t.id]).length;
   const allDone=endTasks.length>0&&doneCount===endTasks.length;
-  const finish=()=>{flash('Đã dọn xong bàn '+tbl.no+' ✓');onClose();};
+  const finish=()=>{onBillOff&&onBillOff(tbl.no);flash('Xong bàn '+tbl.no+' — đã báo quầy tắt tiền giờ 🔔');onClose();};
   return (
     <Modal title="Khách chơi xong — dọn bàn" onClose={onClose}
       foot={sel&&<button className="btn block wide" onClick={finish} disabled={!allDone}><i className="ti ti-check"/>{allDone?`Hoàn tất bàn ${tbl.no}`:`Còn ${endTasks.length-doneCount} việc`}</button>}>
@@ -1010,6 +1047,40 @@ function EndTableModal({tables,endTasks,onClose,flash}){
         </div>
       )}
     </Modal>
+  );
+}
+/* Yêu cầu tại bàn — khách gọi NV / NV báo quầy tắt tiền giờ */
+function AlertsPanel({alerts,setAlerts,me,flash}){
+  const open=alerts.filter(a=>a.status==='open').sort((a,b)=>b.ts-a.ts);
+  const done=alerts.filter(a=>a.status==='done').sort((a,b)=>b.ts-a.ts).slice(0,8);
+  const resolve=(id)=>setAlerts(v=>v.map(a=>a.id===id?{...a,status:'done',doneTs:Date.now(),doneBy:me.name}:a));
+  const card=(a,isDone)=>{
+    const k=ALERT_KINDS[a.kind]||{label:a.kind,icon:'🔔',chip:'',hint:''};
+    const ago=Math.max(0,Math.round((Date.now()-a.ts)/60000));
+    return (
+      <div className={'ocard'+(isDone?' done':'')} key={a.id} style={!isDone?{borderLeftColor:'var(--red)'}:null}>
+        <div className="oh">
+          <span style={{fontSize:20}}>{k.icon}</span>
+          <span className="otbl">Bàn {a.table}</span>
+          <div className="spacer" style={{flex:1}}/>
+          {!isDone&&<span className="chip a"><i className="ti ti-clock"/>{ago===0?'vừa xong':ago+' phút'}</span>}
+          {isDone&&<span className="chip gr"><i className="ti ti-check"/>đã xử lý</span>}
+        </div>
+        <div style={{fontWeight:600,fontSize:13.5,marginBottom:2}}>{k.label}</div>
+        <div className="hint" style={{marginBottom:9}}>{k.hint} · báo bởi {a.byName}{a.source==='customer'?' (khách)':''}</div>
+        {!isDone&&<button className="btn sm block" onClick={()=>resolve(a.id)}><i className="ti ti-check"/>Đã xử lý</button>}
+        {isDone&&a.doneBy&&<div className="hint">xong bởi {a.doneBy}</div>}
+      </div>
+    );
+  };
+  return (
+    <div>
+      {open.length===0&&done.length===0&&<Empty icon="ti-bell-off" text="Chưa có yêu cầu nào từ bàn"/>}
+      {open.length>0&&<div style={{fontSize:13,fontWeight:700,color:'var(--red)',margin:'2px 2px 10px'}}><i className="ti ti-bell-ringing"/> Cần xử lý ({open.length})</div>}
+      {open.map(a=>card(a,false))}
+      {done.length>0&&<div style={{fontSize:13,fontWeight:700,color:'var(--muted)',margin:'16px 2px 10px'}}>Đã xử lý</div>}
+      {done.map(a=>card(a,true))}
+    </div>
   );
 }
 function OrderCard({o,onServe,onCancel,done}){
@@ -1580,8 +1651,11 @@ function CustPic({c,size=40}){
   return <div className="avatar" style={{background:avColor(c.id),width:size,height:size,fontSize:size*0.38}}>{initials(c.name)}</div>;
 }
 function CustView({s}){
-  const {customers,setCustomers,me,isManager,feedback,setFeedback,flash}=s;
+  const {customers,setCustomers,me,isManager,feedback,setFeedback,fbSeen,setFbSeen,flash}=s;
   const [sec,setSec]=useState('list');
+  const newFb=feedback.filter(f=>f.ts>(fbSeen||0)).length;
+  // Mở tab Feedback = quản lý đã xem → tắt badge
+  useEffect(()=>{ if(sec==='fb'&&newFb>0) setFbSeen(Date.now()); },[sec,feedback]);
   const [q,setQ]=useState('');
   const [adding,setAdding]=useState(false);
   const [detail,setDetail]=useState(null);
@@ -1598,7 +1672,7 @@ function CustView({s}){
       <div className="seg">
         <button className={sec==='list'?'on':''} onClick={()=>setSec('list')}><i className="ti ti-users"/>Danh sách</button>
         <button className={sec==='vip'?'on':''} onClick={()=>setSec('vip')}><i className="ti ti-crown"/>VIP</button>
-        <button className={sec==='fb'?'on':''} onClick={()=>setSec('fb')}><i className="ti ti-message-2"/>Feedback</button>
+        <button className={sec==='fb'?'on':''} onClick={()=>setSec('fb')}><i className="ti ti-message-2"/>Feedback {newFb>0&&`(${newFb} mới)`}</button>
       </div>
 
       {sec==='fb'?<FeedbackSection feedback={feedback} setFeedback={setFeedback} customers={customers} me={me} isManager={isManager} flash={flash}/>:(
@@ -1845,14 +1919,17 @@ function PromoMgr({promos,setPromos,flash}){
       {promos.length===0&&<Empty icon="ti-gift" text="Chưa có khuyến mãi nào"/>}
       {promos.map(p=>{
         const live=promoActive(p);
+        const sched=promoScheduled(p);
+        const status=live?'Đang chạy':(!p.active?'Tắt':(sched?'Ngoài khung giờ':'Ngoài lịch'));
         return (
           <div className="card" key={p.id} style={{marginBottom:11}}>
             <div style={{display:'flex',alignItems:'flex-start',gap:8,marginBottom:6}}>
               <b style={{flex:1,fontSize:14.5,fontFamily:'"Baloo 2"'}}>{p.title}</b>
               {p.percent>0&&<span className="chip a">-{p.percent}%</span>}
-              <span className={'chip '+(live?'gr':'')}>{live?'Đang chạy':(p.active?'Ngoài lịch':'Tắt')}</span>
+              <span className={'chip '+(live?'gr':'')}>{status}</span>
             </div>
             <div className="hint" style={{marginBottom:8}}>{p.desc}</div>
+            {p.hourStart&&p.hourEnd&&<div className="hint" style={{marginBottom:8}}><i className="ti ti-clock"/> Khung giờ {p.hourStart}–{p.hourEnd} mỗi ngày</div>}
             {(p.start||p.end)&&<div className="hint" style={{marginBottom:8}}><i className="ti ti-calendar"/> {p.start?fmtDateVN(p.start):'…'} → {p.end?fmtDateVN(p.end):'…'}</div>}
             <div className="rowbtns">
               <button className={'btn sm '+(p.active?'':'ghost')} onClick={()=>toggle(p.id)}><i className={'ti '+(p.active?'ti-toggle-right':'ti-toggle-left')}/>{p.active?'Đang bật':'Đang tắt'}</button>
@@ -1867,18 +1944,22 @@ function PromoMgr({promos,setPromos,flash}){
   );
 }
 function PromoForm({promo,onSave,onClose}){
-  const [p,setP]=useState(()=>promo?{...promo}:{id:uid(),title:'',desc:'',percent:0,start:'',end:'',active:true});
+  const [p,setP]=useState(()=>promo?{hourStart:'',hourEnd:'',...promo}:{id:uid(),title:'',desc:'',percent:0,hourStart:'',hourEnd:'',start:'',end:'',active:true});
   const save=()=>{if(!p.title.trim()){alert('Nhập tên khuyến mãi');return;}onSave({...p,title:p.title.trim(),desc:p.desc.trim(),percent:Number(p.percent)||0});};
   return (
     <Modal title={promo?'Sửa khuyến mãi':'Khuyến mãi mới'} onClose={onClose} foot={<button className="btn block" onClick={save}>Lưu khuyến mãi</button>}>
-      <label className="fld"><span>Tên chương trình *</span><input className="inp" autoFocus value={p.title} onChange={e=>setP({...p,title:e.target.value})} placeholder="VD: Giờ vàng cuối tuần"/></label>
-      <label className="fld"><span>Mô tả / điều kiện</span><textarea className="inp" value={p.desc} onChange={e=>setP({...p,desc:e.target.value})} placeholder="Giảm 20% tiền bàn khung 11h–14h…"/></label>
+      <label className="fld"><span>Tên chương trình *</span><input className="inp" autoFocus value={p.title} onChange={e=>setP({...p,title:e.target.value})} placeholder="VD: Ưu đãi khung giờ 8h–15h"/></label>
+      <label className="fld"><span>Mô tả / điều kiện</span><textarea className="inp" value={p.desc} onChange={e=>setP({...p,desc:e.target.value})} placeholder="Giảm 30% tiền bàn + tặng trà đá…"/></label>
       <label className="fld"><span>Giảm giá (%) — để 0 nếu là quà tặng/combo</span><input className="inp" type="number" min="0" max="100" value={p.percent} onChange={e=>setP({...p,percent:e.target.value})}/></label>
+      <div style={{display:'flex',gap:9}}>
+        <label className="fld" style={{flex:1}}><span>Khung giờ · từ</span><input className="inp" type="time" value={p.hourStart} onChange={e=>setP({...p,hourStart:e.target.value})}/></label>
+        <label className="fld" style={{flex:1}}><span>Khung giờ · đến</span><input className="inp" type="time" value={p.hourEnd} onChange={e=>setP({...p,hourEnd:e.target.value})}/></label>
+      </div>
       <div style={{display:'flex',gap:9}}>
         <label className="fld" style={{flex:1}}><span>Từ ngày</span><input className="inp" type="date" value={p.start} onChange={e=>setP({...p,start:e.target.value})}/></label>
         <label className="fld" style={{flex:1}}><span>Đến ngày</span><input className="inp" type="date" value={p.end} onChange={e=>setP({...p,end:e.target.value})}/></label>
       </div>
-      <p className="hint">Bỏ trống ngày = áp dụng vô thời hạn khi đang bật.</p>
+      <p className="hint">Bỏ trống khung giờ = áp dụng cả ngày. Bỏ trống ngày = vô thời hạn khi đang bật. KM chỉ hiện với khách khi đang trong khung giờ.</p>
     </Modal>
   );
 }
@@ -2257,8 +2338,10 @@ function PenaltyPayroll({penaltyRules,setPenaltyRules,violations,attend,staff,fl
 
 /* ================= Nhân viên quầy ================= */
 function CounterView({s}){
-  const {orders,setOrders,outfood,setOutfood,flash}=s;
-  const [tab,setTab]=useState('orders'); // orders | outfood
+  const {orders,setOrders,outfood,setOutfood,alerts,setAlerts,me,flash}=s;
+  const openAlerts=alerts.filter(a=>a.status==='open');
+  // Có yêu cầu tại bàn → mở thẳng tab Yêu cầu để quầy tắt tiền giờ kịp
+  const [tab,setTab]=useState(()=>openAlerts.length>0?'alerts':'orders'); // orders | alerts | outfood
   const serve=(id)=>setOrders(v=>v.map(o=>o.id===id?{...o,status:'done',doneTs:Date.now()}:o));
   const cancel=(id)=>{if(confirm('Huỷ order này?'))setOrders(v=>v.filter(o=>o.id!==id));};
   const pending=orders.filter(o=>o.status==='pending');
@@ -2267,8 +2350,10 @@ function CounterView({s}){
     <div>
       <div className="seg">
         <button className={tab==='orders'?'on':''} onClick={()=>setTab('orders')}><i className="ti ti-clipboard-list"/>Order bàn {pending.length>0&&`(${pending.length})`}</button>
+        <button className={tab==='alerts'?'on':''} onClick={()=>setTab('alerts')}><i className="ti ti-bell-ringing"/>Yêu cầu {openAlerts.length>0&&`(${openAlerts.length})`}</button>
         <button className={tab==='outfood'?'on':''} onClick={()=>setTab('outfood')}><i className="ti ti-tools-kitchen-2"/>Gọi món ngoài</button>
       </div>
+      {tab==='alerts'&&<AlertsPanel alerts={alerts} setAlerts={setAlerts} me={me} flash={flash}/>}
       {tab==='orders'&&(
         <div>
           {pending.length===0&&done.length===0&&<Empty icon="ti-clipboard-off" text="Chưa có order nào từ các bàn"/>}
@@ -2363,7 +2448,7 @@ function InventoryView({s}){
 }
 
 /* ================= App cho KHÁCH HÀNG ================= */
-function CustomerApp({cust,tables,menu,orders,setOrders,promos,customers,setCustomers,feedback,setFeedback,broadcasts,cloud,dark,setDark,onLogout,flash}){
+function CustomerApp({cust,tables,menu,orders,setOrders,promos,customers,setCustomers,feedback,setFeedback,alerts,setAlerts,broadcasts,cloud,dark,setDark,onLogout,flash}){
   const [view,setView]=useState('order');
   const [readBc,setReadBc]=usePersist('ps.readBc',[]);
   const myOrders=orders.filter(o=>o.by===('c:'+cust.id)).slice(0,20);
@@ -2385,7 +2470,7 @@ function CustomerApp({cust,tables,menu,orders,setOrders,promos,customers,setCust
           <button className="iconbtn" onClick={onLogout} title="Đăng xuất"><i className="ti ti-logout"/></button>
         </header>
         <div className="content">
-          {view==='order'&&<CustOrder cust={cust} tables={tables} menu={menu} promos={promos} orders={myOrders} setOrders={setOrders} flash={flash}/>}
+          {view==='order'&&<CustOrder cust={cust} tables={tables} menu={menu} promos={promos} orders={myOrders} setOrders={setOrders} alerts={alerts} setAlerts={setAlerts} flash={flash}/>}
           {view==='points'&&<CustPoints cust={cust} promos={promos}/>}
           {view==='noti'&&<CustNoti broadcasts={broadcasts}/>}
           {view==='fb'&&<CustFeedback cust={cust} setFeedback={setFeedback} flash={flash}/>}
@@ -2420,7 +2505,7 @@ function CustNoti({broadcasts}){
   );
 }
 function qrTableNo(){ try{ return new URLSearchParams(location.search).get('table'); }catch(e){ return null; } }
-function CustOrder({cust,tables,menu,promos,orders,setOrders,flash}){
+function CustOrder({cust,tables,menu,promos,orders,setOrders,alerts,setAlerts,flash}){
   const qrNo=qrTableNo();
   const findQr=(list)=>{ if(!qrNo)return null; const t=(list||[]).find(x=>String(x.no)===String(qrNo)); return t?t.id:null; };
   const [sel,setSel]=useState(()=>findQr(tables));
@@ -2440,7 +2525,16 @@ function CustOrder({cust,tables,menu,promos,orders,setOrders,flash}){
     const tbl=tables.find(t=>t.id===sel);
     const items=Object.entries(cart).map(([name,qty])=>({name,qty}));
     setOrders(v=>[{id:uid(),table:tbl.no,items,note:note.trim(),by:'c:'+cust.id,byName:cust.name,source:'customer',status:'pending',ts:Date.now()},...v]);
-    setCart({});setNote('');setSel(null);flash('Đã gửi order về quầy, nhân viên mang ra ngay 🎱');
+    setCart({});setNote('');flash('Đã gửi order về quầy, nhân viên mang ra ngay 🎱'); // giữ nguyên bàn đang ngồi
+  };
+  // Gọi nhân viên: báo đã chơi xong (tắt bàn) / xin xếp bi
+  const myOpen=(kind)=>{const tbl=tables.find(t=>t.id===sel);return tbl&&(alerts||[]).some(a=>a.status==='open'&&a.kind===kind&&a.table===tbl.no&&a.by===('c:'+cust.id));};
+  const callStaff=(kind)=>{
+    if(!sel){flash('Chọn bàn bạn đang ngồi trước nhé');return;}
+    if(myOpen(kind)){flash('Đã báo rồi, nhân viên đang tới nhé ⏳');return;}
+    const tbl=tables.find(t=>t.id===sel);
+    setAlerts(v=>[{id:uid(),kind,table:tbl.no,by:'c:'+cust.id,byName:cust.name,source:'customer',status:'open',ts:Date.now()},...v]);
+    flash(kind==='end'?'Đã báo nhân viên ra tắt bàn ✓':'Đã báo nhân viên ra xếp bi ✓');
   };
   return (
     <div>
@@ -2470,6 +2564,24 @@ function CustOrder({cust,tables,menu,promos,orders,setOrders,flash}){
           </div>
         </div>
       </div>
+
+      <div className="panel">
+        <div className="panel-h"><i className="ti ti-bell lead"/><b>Gọi nhân viên</b></div>
+        <div className="panel-b">
+          <div className="rowbtns">
+            <button className={'btn wide '+(myOpen('rack')?'ghost':'')} style={{flex:1,flexDirection:'column',gap:3}} onClick={()=>callStaff('rack')}>
+              <span style={{fontSize:24}}>🎱</span><span>Xếp bi</span>
+              {myOpen('rack')&&<span style={{fontSize:11,opacity:.8}}>đang tới…</span>}
+            </button>
+            <button className={'btn wide '+(myOpen('end')?'ghost':'red')} style={{flex:1,flexDirection:'column',gap:3}} onClick={()=>callStaff('end')}>
+              <span style={{fontSize:24}}>🏁</span><span>Đã chơi xong</span>
+              {myOpen('end')&&<span style={{fontSize:11,opacity:.8}}>đang tới…</span>}
+            </button>
+          </div>
+          <p className="hint" style={{marginTop:9}}>“Xếp bi” — nhân viên ra xếp bi cho bàn. “Đã chơi xong” — nhân viên ra tắt bàn & chốt tiền giờ.</p>
+        </div>
+      </div>
+
       <div className="panel">
         <div className="panel-h"><i className="ti ti-glass-full lead"/><b>Chọn món</b>{count>0&&<span className="chip a">{count} món</span>}</div>
         <div className="panel-b">
