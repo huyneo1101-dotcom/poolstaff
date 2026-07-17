@@ -434,9 +434,10 @@ const SEED_MENU=[
   {grp:'Thuốc lá',items:[{name:'Thăng Long',price:25000},{name:'Vinataba',price:28000},{name:'555',price:35000}]},
   {grp:'Khác',items:[{name:'Lơ (phấn)',price:10000},{name:'Khăn lạnh',price:5000},{name:'Găng bi-a',price:30000}]},
 ];
-// Cũ: items là mảng chuỗi → chuẩn hoá thành {name,price}
-const normMenu=m=>(m||[]).map(g=>({...g,items:(g.items||[]).map(it=>typeof it==='string'?{name:it,price:0}:it)}));
-const priceOfItem=(menu,name)=>{for(const g of (menu||[])){const f=(g.items||[]).find(i=>i.name===name);if(f)return Number(f.price)||0;}return 0;};
+const priceOfItem=(menu,name)=>{for(const g of (menu||[])){const f=(g.items||[]).find(i=>i&&i.name===name);if(f)return Number(f.price)||0;}return 0;};
+// Menu cũ: items là mảng chuỗi → chuẩn hoá {name,price}, lấy giá seed theo tên (đừng để về 0)
+const menuIsOld=m=>(m||[]).some(g=>(g.items||[]).some(i=>typeof i==='string'));
+const normMenu=m=>(m||[]).map(g=>({...g,items:(g.items||[]).map(it=>typeof it==='string'?{name:it,price:priceOfItem(SEED_MENU,it)}:it)}));
 // đầu việc theo ca — mẫu
 const SEED_SHIFT_TASKS={
   morning:[
@@ -745,7 +746,12 @@ function App(){
         else (L.customers||[]).forEach(c=>Cloud.upsertRow('ps_customers',c));
         if(d.tours&&d.tours.length)setTours(d.tours);
         else (L.tours||[]).forEach(t=>Cloud.upsertRow('ps_tours',t));
-        if(d.kv.menu)setMenu(normMenu(d.kv.menu)); else Cloud.setKv('menu',L.menu);
+        if(d.kv.menu){
+          // Menu trên cloud có thể còn định dạng cũ (chuỗi, chưa giá) → nâng cấp rồi đẩy lại lên cloud
+          const fixed=normMenu(d.kv.menu);
+          setMenu(fixed);
+          if(menuIsOld(d.kv.menu))Cloud.setKv('menu',fixed);
+        } else Cloud.setKv('menu',L.menu);
         if(d.kv.tables)setTables(d.kv.tables); else Cloud.setKv('tables',L.tables);
         if(d.kv.promos)setPromos(d.kv.promos); else Cloud.setKv('promos',L.promos);
         Cloud.setStatus('synced');
