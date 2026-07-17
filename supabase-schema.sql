@@ -48,10 +48,23 @@ create policy ps_kv_all         on ps_kv         for all using (true) with check
 create policy ps_broadcasts_all on ps_broadcasts for all using (true) with check (true);
 create policy ps_alerts_all     on ps_alerts     for all using (true) with check (true);
 
--- 3) REALTIME (nếu báo "already member of publication" thì bỏ qua dòng đó) --
-alter publication supabase_realtime add table ps_orders;
-alter publication supabase_realtime add table ps_feedback;
-alter publication supabase_realtime add table ps_customers;
-alter publication supabase_realtime add table ps_kv;
-alter publication supabase_realtime add table ps_broadcasts;
-alter publication supabase_realtime add table ps_alerts;
+-- 3) REALTIME — chỉ thêm bảng nào chưa có (chạy lại nhiều lần không lỗi) --
+do $$
+declare t text;
+begin
+  foreach t in array array['ps_orders','ps_feedback','ps_customers','ps_kv','ps_broadcasts','ps_alerts']
+  loop
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname='supabase_realtime' and schemaname='public' and tablename=t
+    ) then
+      execute format('alter publication supabase_realtime add table public.%I', t);
+    end if;
+  end loop;
+end $$;
+
+-- 4) KIỂM TRA — chạy xong phải thấy đủ 6 bảng ---------------
+select tablename as bang_da_bat_realtime
+from pg_publication_tables
+where pubname='supabase_realtime' and tablename like 'ps_%'
+order by 1;
