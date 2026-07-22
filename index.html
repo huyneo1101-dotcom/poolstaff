@@ -257,6 +257,10 @@ table.data tr:last-child td{border-bottom:0}
 .stepper{display:flex;align-items:center;gap:10px}
 .stepper button{width:34px;height:34px;border-radius:10px;border:1px solid var(--border);background:var(--card);font-size:19px;font-weight:700;color:var(--g);display:flex;align-items:center;justify-content:center}
 .stepper b{font-family:"Baloo 2";font-size:18px;min-width:26px;text-align:center}
+
+/* highlight: khung video 16:9 */
+.vidwrap{position:relative;width:100%;max-width:560px;aspect-ratio:16/9;border-radius:12px;overflow:hidden;background:#000;margin:9px 0}
+.vidwrap iframe,.vidwrap video{position:absolute;inset:0;width:100%;height:100%;border:0;display:block}
 </style>
 </head>
 <body>
@@ -320,7 +324,9 @@ const SB_URL='https://ltmlueqkajqmduoqghdf.supabase.co';
 const SB_KEY='sb_publishable_74Lm6cc0CkoOOzy3A4IRrQ_BX0jHQcg';
 const CLOUD_ARRAYS={orders:'ps_orders',feedback:'ps_feedback',customers:'ps_customers',broadcasts:'ps_broadcasts',alerts:'ps_alerts',
   tours:'ps_tours',signups:'ps_signups',results:'ps_results',bookings:'ps_bookings',
-  sessions:'ps_sessions',maint:'ps_maint',growth:'ps_growth'};
+  sessions:'ps_sessions',maint:'ps_maint',growth:'ps_growth',highlights:'ps_highlights'};
+// Bảng mới thêm sau: quán chưa chạy lại supabase-schema.sql thì bỏ qua, phần còn lại vẫn đồng bộ
+const CLOUD_OPTIONAL={highlights:1};
 const Cloud={
   sb:null,enabled:false,status:'off',onStatus:null,
   init(){
@@ -336,7 +342,7 @@ const Cloud={
     const out={kv:{}};
     for(const key in CLOUD_ARRAYS){
       const {data,error}=await this.sb.from(CLOUD_ARRAYS[key]).select('data');
-      if(error)throw error;
+      if(error){ if(CLOUD_OPTIONAL[key]){out[key]=null;continue;} throw error; }
       out[key]=(data||[]).map(r=>r.data).filter(Boolean);
     }
     const {data:kv,error:e2}=await this.sb.from('ps_kv').select('k,v');
@@ -651,6 +657,7 @@ function App(){
   const [results,setResults]=usePersist('ps.results',[]);
   const [bookings,setBookings]=usePersist('ps.bookings',[]);
   const [sessions,setSessions]=usePersist('ps.sessions',[]);
+  const [highlights,setHighlights]=usePersist('ps.highlights',[]);
   const [maint,setMaint]=usePersist('ps.maint',SEED_MAINT);
   const [growth,setGrowth]=usePersist('ps.growth',SEED_GROWTH);
   const [fbSeen,setFbSeen]=usePersist('ps.fbSeen',0);
@@ -711,6 +718,7 @@ function App(){
   const setResultsC=cloudArr(setResults,'ps_results');
   const setBookingsC=cloudArr(setBookings,'ps_bookings');
   const setSessionsC=cloudArr(setSessions,'ps_sessions');
+  const setHighlightsC=cloudArr(setHighlights,'ps_highlights');
   const setMaintC=cloudArr(setMaint,'ps_maint');
   const setGrowthC=cloudArr(setGrowth,'ps_growth');
   const setMenuC=cloudKv(setMenu,'menu');
@@ -740,6 +748,7 @@ function App(){
         setResults(d.results||[]);
         setBookings(d.bookings||[]);
         setSessions(d.sessions||[]);
+        if(d.highlights)setHighlights(d.highlights); // null = chưa có bảng ps_highlights → giữ dữ liệu cục bộ
         if(d.maint&&d.maint.length)setMaint(d.maint); else (L.maint||[]).forEach(x=>Cloud.upsertRow('ps_maint',x));
         if(d.growth&&d.growth.length)setGrowth(d.growth); else (L.growth||[]).forEach(x=>Cloud.upsertRow('ps_growth',x));
         if(d.customers&&d.customers.length)setCustomers(d.customers);
@@ -765,6 +774,7 @@ function App(){
         subs.push(Cloud.subscribe('ps_results',p=>applyRealtime(setResults,p)));
         subs.push(Cloud.subscribe('ps_bookings',p=>applyRealtime(setBookings,p)));
         subs.push(Cloud.subscribe('ps_sessions',p=>applyRealtime(setSessions,p)));
+        if(d.highlights)subs.push(Cloud.subscribe('ps_highlights',p=>applyRealtime(setHighlights,p)));
         subs.push(Cloud.subscribe('ps_maint',p=>applyRealtime(setMaint,p)));
         subs.push(Cloud.subscribe('ps_growth',p=>applyRealtime(setGrowth,p)));
         subs.push(Cloud.sb.channel('rt_ps_kv').on('postgres_changes',{event:'*',schema:'public',table:'ps_kv'},p=>{
@@ -789,6 +799,7 @@ function App(){
   const newBookings=bookings.filter(b=>b.status==='pending').length; // đặt bàn chờ duyệt
   const openTables=sessions.filter(x=>!x.endTs).length; // bàn đang chơi
   const newFb=feedback.filter(f=>f.ts>(fbSeen||0)).length; // góp ý mới cho quản lý
+  const newHl=highlights.filter(h=>h.status==='pending').length; // yêu cầu cắt clip chờ xử lý
 
   const NAV_BY_ROLE={
     manager:['manage','desk','tasks','attend','cust'],
@@ -819,6 +830,7 @@ function App(){
       promos={promos} customers={customers} setCustomers={setCustomersC} feedback={feedback} setFeedback={setFeedbackC}
       alerts={alerts} setAlerts={setAlertsC} tours={tours} signups={signups} setSignups={setSignupsC}
       bookings={bookings} setBookings={setBookingsC}
+      highlights={highlights} setHighlights={setHighlightsC}
       broadcasts={broadcasts} cloud={cloud} dark={dark} setDark={setDark} onLogout={()=>setMeId(null)} flash={flash}/>;
   }
   if(!me) return <Login staff={staff} onPick={setMeId} customers={customers} setCustomers={setCustomersC} onCust={setMeId} cloud={cloud}/>;
@@ -829,6 +841,7 @@ function App(){
     customers,setCustomers:setCustomersC,promos,setPromos:setPromosC,tours,setTours:setToursC,
     signups,setSignups:setSignupsC,results,setResults:setResultsC,bookings,setBookings:setBookingsC,
     sessions,setSessions:setSessionsC,maint,setMaint:setMaintC,growth,setGrowth:setGrowthC,
+    highlights,setHighlights:setHighlightsC,
     feedback,setFeedback:setFeedbackC,penaltyRules,setPenaltyRules,
     violations,setViolations,outfood,setOutfood,inventory,setInventory,endTasks,setEndTasks,
     broadcasts,setBroadcasts:setBroadcastsC,alerts,setAlerts:setAlertsC,fbSeen,setFbSeen,cloud,flash};
@@ -841,7 +854,7 @@ function App(){
     train:{label:'Đào tạo',icon:'ti-school'},
     attend:{label:'Chấm công',icon:'ti-clock-hour-4'},
     cust:{label:'Khách',icon:'ti-users',badge:isManager?newFb:0},
-    manage:{label:'Quản lý',icon:'ti-briefcase'},
+    manage:{label:'Quản lý',icon:'ti-briefcase',badge:isManager?newHl:0},
     tours:{label:'Giải đấu',icon:'ti-trophy'},
     desk:{label:'Bàn',icon:'ti-layout-grid',badge:openTables},
   };
@@ -2106,6 +2119,7 @@ function ManageView({s}){
   const {staff,setStaff,menu,setMenu,promos,setPromos,tours,setTours,penaltyRules,setPenaltyRules,violations,attend,tables,setTables,endTasks,setEndTasks,broadcasts,setBroadcasts,customers,cloud,flash}=s;
   const [sec,setSec]=useState('book');
   const [oth,setOth]=useState('staff'); // mục con của "Khác"
+  const hlNew=(s.highlights||[]).filter(h=>h.status==='pending').length;
   return (
     <div>
       <div className="seg">
@@ -2115,6 +2129,7 @@ function ManageView({s}){
         <button className={sec==='grow'?'on':''} onClick={()=>setSec('grow')}><i className="ti ti-chart-line"/>Tăng doanh số</button>
         <button className={sec==='maint'?'on':''} onClick={()=>setSec('maint')}><i className="ti ti-tools"/>Bảo trì</button>
         <button className={sec==='tour'?'on':''} onClick={()=>setSec('tour')}><i className="ti ti-trophy"/>Giải đấu</button>
+        <button className={sec==='hl'?'on':''} onClick={()=>setSec('hl')}><i className="ti ti-video"/>Highlight {hlNew>0&&`(${hlNew})`}</button>
         <button className={sec==='bc'?'on':''} onClick={()=>setSec('bc')}><i className="ti ti-speakerphone"/>Gửi tin</button>
         <button className={sec==='other'?'on':''} onClick={()=>setSec('other')}><i className="ti ti-dots"/>Khác</button>
       </div>
@@ -2124,6 +2139,7 @@ function ManageView({s}){
       {sec==='promo'&&<PromoMgr promos={promos} setPromos={setPromos} flash={flash}/>}
       {sec==='pay'&&<PenaltyPayroll penaltyRules={penaltyRules} setPenaltyRules={setPenaltyRules} violations={violations} attend={attend} staff={staff} flash={flash}/>}
       {sec==='tour'&&<TourMgr tours={tours} setTours={setTours} signups={s.signups} flash={flash}/>}
+      {sec==='hl'&&<HighlightMgr highlights={s.highlights} setHighlights={s.setHighlights} customers={customers} me={s.me} flash={flash}/>}
       {sec==='bc'&&<BroadcastMgr broadcasts={broadcasts} setBroadcasts={setBroadcasts} promos={promos} tours={tours} customers={customers} cloud={cloud} flash={flash}/>}
       {sec==='other'&&(
         <div>
@@ -3200,7 +3216,7 @@ function InventoryView({s}){
 }
 
 /* ================= App cho KHÁCH HÀNG ================= */
-function CustomerApp({cust,tables,menu,orders,setOrders,promos,customers,setCustomers,feedback,setFeedback,alerts,setAlerts,tours,signups,setSignups,bookings,setBookings,broadcasts,cloud,dark,setDark,onLogout,flash}){
+function CustomerApp({cust,tables,menu,orders,setOrders,promos,customers,setCustomers,feedback,setFeedback,alerts,setAlerts,tours,signups,setSignups,bookings,setBookings,highlights,setHighlights,broadcasts,cloud,dark,setDark,onLogout,flash}){
   const [view,setView]=useState('order');
   const [readBc,setReadBc]=usePersist('ps.readBc',[]);
   const myOrders=orders.filter(o=>o.by===('c:'+cust.id)).slice(0,20);
@@ -3208,9 +3224,13 @@ function CustomerApp({cust,tables,menu,orders,setOrders,promos,customers,setCust
   useEffect(()=>{ if(view==='noti'&&unread>0) setReadBc((broadcasts||[]).map(b=>b.id)); },[view,broadcasts]);
   const myBook=bookings.filter(b=>b.custId===cust.id);
   const bookNews=myBook.filter(b=>b.status!=='pending'&&b.decidedTs&&Date.now()-b.decidedTs<86400000).length;
+  const myHl=(highlights||[]).filter(h=>h.custId===cust.id);
+  const hlNews=myHl.filter(h=>h.status!=='pending'&&h.doneTs&&Date.now()-h.doneTs<86400000).length; // video/ phản hồi mới trong 24h
   const NAV=[{id:'order',label:'Đặt món',icon:'ti-glass-full'},{id:'book',label:'Đặt bàn',icon:'ti-calendar-event',badge:bookNews},
+    {id:'hl',label:'Highlight',icon:'ti-video',badge:hlNews},
     {id:'tour',label:'Giải đấu',icon:'ti-trophy'},{id:'points',label:'Điểm',icon:'ti-star'},{id:'fb',label:'Góp ý',icon:'ti-message-2'}];
   const TITLES={order:['Đặt món','Chọn bàn & gọi đồ'],book:['Đặt bàn','Giữ bàn trước'],tour:['Giải đấu','Sắp diễn ra & đăng ký'],
+    hl:['Highlight','Xin cắt clip pha bóng đẹp'],
     points:['Điểm của tôi','Tích luỹ & ưu đãi'],noti:['Thông báo','Khuyến mãi & giải đấu'],fb:['Góp ý','Đánh giá quán']};
   const t=TITLES[view];
   return (
@@ -3228,6 +3248,7 @@ function CustomerApp({cust,tables,menu,orders,setOrders,promos,customers,setCust
         <div className="content">
           {view==='order'&&<CustOrder cust={cust} tables={tables} menu={menu} promos={promos} orders={myOrders} setOrders={setOrders} alerts={alerts} setAlerts={setAlerts} flash={flash}/>}
           {view==='book'&&<CustBooking cust={cust} tables={tables} bookings={myBook} setBookings={setBookings} flash={flash}/>}
+          {view==='hl'&&<CustHighlight cust={cust} tables={tables} mine={myHl} setHighlights={setHighlights} flash={flash}/>}
           {view==='tour'&&<CustTours cust={cust} tours={tours} signups={signups} setSignups={setSignups} flash={flash}/>}
           {view==='points'&&<CustPoints cust={cust} promos={promos}/>}
           {view==='noti'&&<CustNoti broadcasts={broadcasts}/>}
@@ -3581,6 +3602,248 @@ function CustFeedback({cust,setFeedback,flash}){
           <button className="btn block wide" onClick={submit}><i className="ti ti-send"/>Gửi góp ý</button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ================= Highlight: khách xin cắt clip, quản lý gửi link video =================
+   Khách chọn bàn + mốc thời gian chính xác (giờ:phút:giây) → quán cắt cam → dán link video.
+   Video gửi về nằm luôn trong tab Highlight của khách (đồng bộ cloud qua ps_highlights).
+*/
+const HL_ST={pending:{label:'Chờ cắt clip',chip:'a'},done:{label:'Đã có video',chip:'gr'},rejected:{label:'Không cắt được',chip:'r'}};
+const nowHMS=()=>{const d=new Date();return pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());};
+const hmsToSec=t=>{const p=String(t||'').split(':').map(Number);return (p[0]||0)*3600+(p[1]||0)*60+(p[2]||0);};
+const secToHMS=s=>{s=((Math.round(s)%86400)+86400)%86400;return pad(Math.floor(s/3600))+':'+pad(Math.floor(s/60)%60)+':'+pad(s%60);};
+// Khoảng cam cần cắt: mốc pha bóng lùi/tiến vài giây
+const hlFrom=h=>secToHMS(hmsToSec(h.at)-(Number(h.before)||0));
+const hlTo=h=>secToHMS(hmsToSec(h.at)+(Number(h.after)||0));
+const hlRange=h=>hlFrom(h)+' → '+hlTo(h);
+const hlLen=h=>(Number(h.before)||0)+(Number(h.after)||0);
+const safeUrl=u=>/^https?:\/\//i.test(String(u||'').trim())?String(u).trim():'';
+const ytId=u=>{const m=/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/))([\w-]{11})/.exec(u||'');return m?m[1]:'';};
+const isVidFile=u=>/\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(u||'');
+function VideoBox({url}){
+  const u=safeUrl(url); if(!u)return null;
+  const yt=ytId(u);
+  if(yt) return <div className="vidwrap"><iframe src={'https://www.youtube.com/embed/'+yt} title="Highlight" allowFullScreen
+    allow="accelerometer; encrypted-media; picture-in-picture; fullscreen"/></div>;
+  if(isVidFile(u)) return <div className="vidwrap"><video src={u} controls playsInline preload="metadata"/></div>;
+  return <a className="btn block wide" href={u} target="_blank" rel="noopener noreferrer" style={{marginTop:9}}><i className="ti ti-external-link"/>Mở video</a>;
+}
+
+/* ----- App khách: xin cắt clip + kho video của mình ----- */
+function CustHighlight({cust,tables,mine,setHighlights,flash}){
+  const qrNo=qrTableNo();
+  const findQr=(list)=>{ if(!qrNo)return ''; const t=(list||[]).find(x=>String(x.no)===String(qrNo)); return t?t.id:''; };
+  const [sel,setSel]=useState(()=>findQr(tables));
+  const [tab,setTab]=useState('new'); // new | vid
+  const [f,setF]=useState(()=>({date:today(),at:nowHMS(),before:30,after:15,note:''}));
+  const qrDone=useRef(false);
+  useEffect(()=>{ if(qrNo&&!qrDone.current){ const id=findQr(tables); if(id){setSel(id);qrDone.current=true;} } },[tables]);
+  const list=[...(mine||[])].sort((a,b)=>b.ts-a.ts);
+  const vids=list.filter(h=>h.status==='done'&&safeUrl(h.videoUrl));
+  const send=()=>{
+    if(!sel){flash('Chọn bàn bạn đang chơi');return;}
+    if(!f.at){flash('Nhập thời điểm pha bóng');return;}
+    if(f.date>today()){flash('Không chọn được ngày ở tương lai');return;}
+    const tbl=tables.find(t=>t.id===sel); if(!tbl){flash('Bàn không còn tồn tại');return;}
+    setHighlights(v=>[{id:uid(),custId:cust.id,custName:cust.name,phone:cust.phone||'',
+      table:tbl.no,date:f.date,at:f.at,before:Number(f.before)||0,after:Number(f.after)||0,
+      note:f.note.trim(),status:'pending',ts:Date.now()},...v]);
+    setF({...f,note:''});
+    flash('Đã gửi yêu cầu cắt clip — quán sẽ gửi video sớm 🎬');
+  };
+  const quick=(back)=>setF(x=>({...x,date:today(),at:secToHMS(hmsToSec(nowHMS())-back)}));
+  const cancel=(id)=>{ if(confirm('Huỷ yêu cầu cắt clip này?')) setHighlights(v=>v.filter(h=>h.id!==id)); };
+  return (
+    <div>
+      <div className="seg">
+        <button className={tab==='new'?'on':''} onClick={()=>setTab('new')}><i className="ti ti-scissors"/>Xin cắt clip</button>
+        <button className={tab==='vid'?'on':''} onClick={()=>setTab('vid')}><i className="ti ti-player-play"/>Video của tôi {vids.length>0&&`(${vids.length})`}</button>
+      </div>
+
+      {tab==='new'&&<div>
+        <div className="panel">
+          <div className="panel-h"><i className="ti ti-video lead"/><b>Xin cắt clip pha bóng đẹp</b></div>
+          <div className="panel-b">
+            <label className="fld"><span>Bàn bạn đang chơi</span>
+              <select className="inp" value={sel} onChange={e=>setSel(e.target.value)}>
+                <option value="">— Chọn bàn —</option>
+                {tables.map(t=><option key={t.id} value={t.id}>Bàn {t.no} · {t.type}</option>)}
+              </select>
+            </label>
+            <div style={{display:'flex',gap:9,flexWrap:'wrap'}}>
+              <label className="fld" style={{flex:1,minWidth:130}}><span>Ngày</span>
+                <input className="inp" type="date" max={today()} value={f.date} onChange={e=>setF({...f,date:e.target.value})}/></label>
+              <label className="fld" style={{width:135}}><span>Lúc mấy giờ (giờ:phút:giây)</span>
+                <input className="inp" type="time" step="1" value={f.at} onChange={e=>setF({...f,at:e.target.value})}/></label>
+            </div>
+            <div className="rowbtns" style={{marginBottom:12}}>
+              <button className="btn ghost sm" onClick={()=>quick(20)}>Vừa xong (20 giây trước)</button>
+              <button className="btn ghost sm" onClick={()=>quick(60)}>1 phút trước</button>
+              <button className="btn ghost sm" onClick={()=>quick(300)}>5 phút trước</button>
+            </div>
+            <div style={{display:'flex',gap:9,flexWrap:'wrap'}}>
+              <label className="fld" style={{flex:1,minWidth:110}}><span>Lấy trước (giây)</span>
+                <input className="inp" type="number" min="0" max="300" value={f.before} onChange={e=>setF({...f,before:e.target.value})}/></label>
+              <label className="fld" style={{flex:1,minWidth:110}}><span>Lấy sau (giây)</span>
+                <input className="inp" type="number" min="0" max="300" value={f.after} onChange={e=>setF({...f,after:e.target.value})}/></label>
+            </div>
+            <label className="fld"><span>Mô tả pha bóng</span>
+              <input className="inp" value={f.note} onChange={e=>setF({...f,note:e.target.value})} placeholder="VD: cú đi 3 băng ăn bi 8"/></label>
+            <div className="chip b" style={{marginBottom:10}}><i className="ti ti-clock"/>Cắt đoạn {hlRange(f)} · dài ~{hlLen(f)} giây</div>
+            <button className="btn block wide" onClick={send}><i className="ti ti-send"/>Gửi yêu cầu cắt clip</button>
+            <p className="hint" style={{marginTop:8}}>Ghi đúng giờ:phút:giây thì quán tìm trên camera nhanh hơn. Xong quán gửi link video vào mục <b>Video của tôi</b>.</p>
+          </div>
+        </div>
+        <div className="panel">
+          <div className="panel-h"><i className="ti ti-history lead"/><b>Yêu cầu của tôi</b></div>
+          <div className="panel-b" style={{paddingTop:6}}>
+            {list.length===0&&<Empty icon="ti-video-off" text="Bạn chưa xin cắt clip lần nào"/>}
+            {list.map(h=>{const st=HL_ST[h.status]||HL_ST.pending;return (
+              <div className="row" key={h.id}>
+                <span style={{fontSize:20}}>🎬</span>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontWeight:600}}>Bàn {h.table} · {fmtDateVN(h.date)} · {h.at}</div>
+                  <div className="hint">{h.note||'—'}{h.reason?' · '+h.reason:''}</div>
+                </div>
+                <span className={'chip '+st.chip}>{st.label}</span>
+                {h.status==='pending'&&<button className="iconbtn" style={{padding:6,border:0,background:'none'}} onClick={()=>cancel(h.id)}><i className="ti ti-trash" style={{fontSize:16}}/></button>}
+              </div>
+            );})}
+          </div>
+        </div>
+      </div>}
+
+      {tab==='vid'&&<div>
+        {vids.length===0&&<Empty icon="ti-player-play" text="Chưa có video nào — xin cắt clip rồi quán sẽ gửi vào đây"/>}
+        {vids.map(h=>(
+          <div className="panel" key={h.id}>
+            <div className="panel-h"><i className="ti ti-player-play lead"/><b>{h.videoTitle||('Bàn '+h.table+' · '+fmtDateVN(h.date))}</b></div>
+            <div className="panel-b">
+              <VideoBox url={h.videoUrl}/>
+              <div className="hint" style={{marginTop:4}}>
+                Bàn {h.table} · {fmtDateVN(h.date)} · {h.at}{h.note?' · '+h.note:''}
+                {h.doneTs?' · quán gửi '+new Date(h.doneTs).toLocaleString('vi',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):''}
+              </div>
+              <a className="btn ghost sm" href={safeUrl(h.videoUrl)} target="_blank" rel="noopener noreferrer" style={{marginTop:9}}><i className="ti ti-external-link"/>Mở / tải về</a>
+            </div>
+          </div>
+        ))}
+      </div>}
+    </div>
+  );
+}
+
+/* ----- Quản lý: xử lý yêu cầu & gửi link video ----- */
+function HighlightMgr({highlights,setHighlights,customers,me,flash}){
+  const [edit,setEdit]=useState(null);  // yêu cầu đang gán link
+  const [url,setUrl]=useState('');
+  const [title,setTitle]=useState('');
+  const [openNew,setOpenNew]=useState(false);
+  const [nf,setNf]=useState({custId:'',url:'',title:'',note:''});
+  const all=highlights||[];
+  const pending=all.filter(h=>h.status==='pending').sort((a,b)=>a.ts-b.ts);
+  const rest=all.filter(h=>h.status!=='pending').sort((a,b)=>(b.doneTs||b.ts)-(a.doneTs||a.ts)).slice(0,20);
+  const openSend=(h)=>{setEdit(h);setUrl(h.videoUrl||'');setTitle(h.videoTitle||'');};
+  const save=()=>{
+    const u=safeUrl(url);
+    if(!u){flash('Dán link bắt đầu bằng http(s): YouTube, Drive, file .mp4…');return;}
+    setHighlights(v=>v.map(h=>h.id===edit.id?{...h,videoUrl:u,videoTitle:title.trim(),status:'done',
+      doneTs:Date.now(),doneBy:me.name,reason:''}:h));
+    setEdit(null);setUrl('');setTitle('');flash('Đã gửi video cho khách ✓');
+  };
+  const reject=(h)=>{
+    const r=prompt('Lý do (khách sẽ thấy):','Camera không lưu được đoạn đó');
+    if(r===null)return;
+    setHighlights(v=>v.map(x=>x.id===h.id?{...x,status:'rejected',doneTs:Date.now(),doneBy:me.name,reason:r}:x));
+    flash('Đã báo lại cho khách');
+  };
+  const del=(h)=>{ if(confirm('Xoá hẳn mục highlight này?')) setHighlights(v=>v.filter(x=>x.id!==h.id)); };
+  const sendNew=()=>{
+    const c=(customers||[]).find(x=>x.id===nf.custId);
+    if(!c){flash('Chọn khách nhận video');return;}
+    const u=safeUrl(nf.url); if(!u){flash('Dán link http(s) hợp lệ');return;}
+    setHighlights(v=>[{id:uid(),custId:c.id,custName:c.name,phone:c.phone||'',table:'',date:today(),at:nowHMS(),
+      before:0,after:0,note:nf.note.trim(),videoUrl:u,videoTitle:nf.title.trim(),status:'done',
+      ts:Date.now(),doneTs:Date.now(),doneBy:me.name},...v]);
+    setNf({custId:'',url:'',title:'',note:''});setOpenNew(false);
+    flash('Đã gửi video cho '+c.name+' ✓');
+  };
+  const card=(h)=>{
+    const st=HL_ST[h.status]||HL_ST.pending;
+    return (
+      <div className={'ocard'+(h.status!=='pending'?' done':'')} key={h.id}
+        style={h.status==='pending'?{borderLeftColor:'var(--blue)'}:null}>
+        <div className="oh">
+          <span style={{fontSize:20}}>🎬</span>
+          <span className="otbl">{h.table?'Bàn '+h.table:'Gửi trực tiếp'}</span>
+          <div className="spacer" style={{flex:1}}/>
+          <span className={'chip '+st.chip}>{st.label}</span>
+        </div>
+        <div style={{fontWeight:600,fontSize:13.5,marginBottom:2}}>{h.custName} · {h.phone||'—'}</div>
+        {h.status==='pending'||h.table?(
+          <div className="hint" style={{marginBottom:9}}>
+            {fmtDateVN(h.date)} · pha bóng lúc <b>{h.at}</b>{hlLen(h)>0&&<> · cắt {hlRange(h)} (~{hlLen(h)}s)</>}
+            {h.note?' · '+h.note:''}
+          </div>
+        ):<div className="hint" style={{marginBottom:9}}>{h.note||'—'}</div>}
+        {h.status==='done'&&safeUrl(h.videoUrl)&&<VideoBox url={h.videoUrl}/>}
+        {h.status==='rejected'&&h.reason&&<div className="hint" style={{marginBottom:9}}>Lý do: {h.reason}</div>}
+        <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+          {h.status!=='pending'&&<span className="hint">{h.doneBy?'bởi '+h.doneBy:''}</span>}
+          <div className="spacer" style={{flex:1}}/>
+          <button className="btn ghost sm" onClick={()=>del(h)}><i className="ti ti-trash"/></button>
+          {h.status==='pending'&&<button className="btn ghost sm" onClick={()=>reject(h)}><i className="ti ti-x"/>Không cắt được</button>}
+          <button className="btn sm" onClick={()=>openSend(h)}>
+            <i className={'ti '+(h.status==='done'?'ti-edit':'ti-link')}/>{h.status==='done'?'Sửa link':'Gửi link video'}</button>
+        </div>
+      </div>
+    );
+  };
+  return (
+    <div>
+      <div className="panel">
+        <div className="panel-h"><i className="ti ti-video lead"/><b>Cắt clip cho khách</b>
+          <div className="spacer" style={{flex:1}}/>
+          <button className="btn ghost sm" onClick={()=>setOpenNew(v=>!v)}><i className="ti ti-plus"/>Gửi video</button>
+        </div>
+        {openNew&&<div className="panel-b">
+          <p className="hint" style={{marginBottom:9}}>Gửi thẳng một video cho khách mà không cần khách phải xin.</p>
+          <label className="fld"><span>Khách nhận</span>
+            <select className="inp" value={nf.custId} onChange={e=>setNf({...nf,custId:e.target.value})}>
+              <option value="">— Chọn khách —</option>
+              {(customers||[]).map(c=><option key={c.id} value={c.id}>{c.name}{c.phone?' · '+c.phone:''}</option>)}
+            </select>
+          </label>
+          <label className="fld"><span>Link video</span>
+            <input className="inp" value={nf.url} onChange={e=>setNf({...nf,url:e.target.value})} placeholder="https://youtu.be/… hoặc link Drive / .mp4"/></label>
+          <label className="fld"><span>Tiêu đề</span>
+            <input className="inp" value={nf.title} onChange={e=>setNf({...nf,title:e.target.value})} placeholder="VD: Cú đi 3 băng tối thứ 7"/></label>
+          <label className="fld"><span>Ghi chú</span>
+            <input className="inp" value={nf.note} onChange={e=>setNf({...nf,note:e.target.value})} placeholder="tuỳ chọn"/></label>
+          <button className="btn block wide" onClick={sendNew}><i className="ti ti-send"/>Gửi cho khách</button>
+        </div>}
+      </div>
+      {pending.length===0&&rest.length===0&&<Empty icon="ti-video-off" text="Chưa có yêu cầu cắt clip nào"/>}
+      {pending.length>0&&<div style={{fontSize:13,fontWeight:700,color:'var(--blue)',margin:'2px 2px 10px'}}><i className="ti ti-scissors"/> Chờ cắt clip ({pending.length})</div>}
+      {pending.map(card)}
+      {rest.length>0&&<div style={{fontSize:13,fontWeight:700,color:'var(--muted)',margin:'16px 2px 10px'}}>Đã xử lý</div>}
+      {rest.map(card)}
+      {edit&&<Modal title={'Gửi video cho '+edit.custName} onClose={()=>setEdit(null)}
+        foot={<button className="btn block wide" onClick={save}><i className="ti ti-send"/>Gửi cho khách</button>}>
+        <div className="hint" style={{marginBottom:11}}>
+          {edit.table?<>Bàn {edit.table} · </>:null}{fmtDateVN(edit.date)} · pha bóng lúc <b>{edit.at}</b>
+          {hlLen(edit)>0&&<> · cắt đoạn <b>{hlRange(edit)}</b> (~{hlLen(edit)} giây)</>}
+          {edit.note?<><br/>Khách mô tả: {edit.note}</>:null}
+        </div>
+        <label className="fld"><span>Link video</span>
+          <input className="inp" value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://youtu.be/… hoặc link Drive / .mp4"/></label>
+        <label className="fld"><span>Tiêu đề (khách nhìn thấy)</span>
+          <input className="inp" value={title} onChange={e=>setTitle(e.target.value)} placeholder={'Bàn '+edit.table+' · '+fmtDateVN(edit.date)}/></label>
+        {safeUrl(url)&&<VideoBox url={url}/>}
+        <p className="hint">Link YouTube hoặc file .mp4 sẽ xem được ngay trong app. Link khác (Drive, Facebook…) hiện nút mở tab mới — nhớ đặt quyền xem công khai.</p>
+      </Modal>}
     </div>
   );
 }

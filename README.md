@@ -13,7 +13,7 @@ tích điểm khách, khuyến mãi, giải đấu — và app riêng cho **khá
 | **Quản lý** | Báo món | Toàn quyền + hub *Quản lý*: khuyến mãi, giải đấu, gửi tin, QR bàn, lỗi & lương, bàn, nhân viên, thực đơn |
 | **Nhân viên phục vụ** | Báo món | Báo món, đầu việc, đào tạo, chấm công, khách |
 | **Nhân viên quầy** | Quầy | Order các bàn, gọi món ngoài, kiểm kho |
-| **Khách hàng** | Đặt món | Đặt món, điểm tích luỹ, thông báo, góp ý |
+| **Khách hàng** | Đặt món | Đặt món, đặt bàn, **Highlight** (xin cắt clip & xem video), điểm tích luỹ, thông báo, góp ý |
 
 Đăng nhập giả lập (chọn tên). Khách đăng nhập bằng **SĐT**, máy tự nhớ.
 
@@ -27,10 +27,24 @@ tích điểm khách, khuyến mãi, giải đấu — và app riêng cho **khá
 Chạy 1 lần `supabase-schema.sql` trong **Supabase → SQL Editor**. Sau đó:
 
 - **Order realtime** — order từ máy nhân viên/khách hiện ngay ở quầy
-- Đồng bộ: order · góp ý · khách & điểm · menu · bàn · khuyến mãi · thông báo
+- Đồng bộ: order · góp ý · khách & điểm · menu · bàn · khuyến mãi · thông báo · highlight
 - Nội bộ (chấm công, đào tạo, lương, kho, giải đấu) vẫn lưu cục bộ từng máy
 
 Chưa chạy SQL / mất mạng → app vẫn chạy bình thường bằng `localStorage`. Icon ☁️ ở góc trên báo trạng thái.
+
+## Highlight — cắt clip pha bóng đẹp
+
+Khách vào tab **Highlight** chọn bàn + mốc thời gian chính xác (giờ:phút:giây, có nút "vừa xong / 1 phút trước")
+và số giây lấy trước–sau → quán biết đúng đoạn cần trích trên camera.
+
+**Quản lý → Highlight**: xem yêu cầu (bàn · ngày · đoạn cần cắt · mô tả), dán **link video** gửi lại khách,
+hoặc báo "không cắt được" kèm lý do. Cũng gửi thẳng video cho khách được mà không cần khách xin.
+
+Video nằm luôn trong mục **Video của tôi** của khách. Link YouTube hoặc file `.mp4` phát ngay trong app;
+link khác (Drive, Facebook…) hiện nút mở tab mới — nhớ đặt quyền xem công khai.
+
+> Cần chạy lại `supabase-schema.sql` (thêm bảng `ps_highlights`) thì highlight mới đồng bộ giữa các máy.
+> Chưa chạy → phần còn lại vẫn đồng bộ bình thường, riêng highlight lưu cục bộ.
 
 ## QR đặt món
 
