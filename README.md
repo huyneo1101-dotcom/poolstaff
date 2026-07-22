@@ -11,8 +11,9 @@ tích điểm khách, khuyến mãi, giải đấu — và app riêng cho **khá
 | Vai | Màn mặc định | Chức năng chính |
 |-----|--------------|-----------------|
 | **Quản lý** | Báo món | Toàn quyền + hub *Quản lý*: khuyến mãi, giải đấu, gửi tin, QR bàn, lỗi & lương, bàn, nhân viên, thực đơn |
-| **Nhân viên phục vụ** | Báo món | Báo món, đầu việc, đào tạo, chấm công, khách |
-| **Nhân viên quầy** | Quầy | Order các bàn, gọi món ngoài, kiểm kho |
+| **Nhân viên phục vụ** | Báo món | Báo món, đầu việc, gậy & tủ, đào tạo, chấm công |
+| **Nhân viên quầy** | Quầy | Order các bàn, gọi món ngoài, gậy & tủ, kiểm kho |
+| **Tổ chức giải** | Giải đấu | Lịch giải, đăng ký, kết quả, khách, chấm công |
 | **Khách hàng** | Đặt món | Đặt món, đặt bàn, **Highlight** (xin cắt clip & xem video), **hạng & quà theo giờ chơi**, thông báo, góp ý |
 
 Đăng nhập giả lập (chọn tên). Khách đăng nhập bằng **SĐT**, máy tự nhớ.
@@ -27,7 +28,7 @@ tích điểm khách, khuyến mãi, giải đấu — và app riêng cho **khá
 Chạy 1 lần `supabase-schema.sql` trong **Supabase → SQL Editor**. Sau đó:
 
 - **Order realtime** — order từ máy nhân viên/khách hiện ngay ở quầy
-- Đồng bộ: order · góp ý · khách & điểm/giờ chơi · menu · bàn · khuyến mãi · hạng khách · thông báo · highlight
+- Đồng bộ: order · góp ý · khách & điểm/giờ chơi · menu · bàn · khuyến mãi · hạng khách · thông báo · highlight · tủ gậy & gậy quán
 - Nội bộ (chấm công, đào tạo, lương, kho, giải đấu) vẫn lưu cục bộ từng máy
 
 Chưa chạy SQL / mất mạng → app vẫn chạy bình thường bằng `localStorage`. Icon ☁️ ở góc trên báo trạng thái.
@@ -50,6 +51,20 @@ Mỗi lần **chốt bill có gắn tên khách** (mục *Bàn*), khách đượ
 - **Khách → hồ sơ khách**: nhân viên bấm *Đã trao* khi đưa quà cho khách.
 - App khách, tab **Hạng**: hạng hiện tại, thanh tiến trình "còn bao nhiêu giờ nữa lên hạng", quà của mình.
 - Khách cũ chưa có giờ chơi thì quy đổi tạm từ điểm đã tích (10đ = 1 giờ), không mất hạng.
+
+## Gậy & tủ
+
+Màn **Gậy & tủ** (quản lý · nhân viên quầy · nhân viên phục vụ), 2 mục:
+
+- **Tủ gửi gậy** — sơ đồ ô tủ như sơ đồ bàn. Bấm ô trống để cho khách quen thuê: chọn khách, ghi
+  gậy khách gửi, ngày bắt đầu / hết hạn, phí theo tháng. Ô đang thuê bấm để **gia hạn 1 tháng**
+  hoặc **trả tủ**. Viền xanh = đang thuê · vàng = còn ≤7 ngày · đỏ = quá hạn; danh sách
+  *cần nhắc khách đóng phí* nổi lên đầu, số tủ quá hạn hiện thành badge đỏ trên thanh menu.
+- **Gậy của quán** — giá cơ cho khách mượn: mã, loại, tình trạng (tốt / cần bảo dưỡng / hỏng —
+  bấm để đổi), cho bàn nào mượn và nút *đã trả*. Cơ hỏng không cho mượn được.
+
+Khách xem **tủ của mình** (số tủ, gậy đã gửi, hạn) ngay trong tab **Hạng** của app khách.
+Chỉ quản lý mới thêm/xoá ô tủ và gậy.
 
 ## Highlight — cắt clip pha bóng đẹp
 

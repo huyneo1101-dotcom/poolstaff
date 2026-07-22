@@ -324,9 +324,10 @@ const SB_URL='https://ltmlueqkajqmduoqghdf.supabase.co';
 const SB_KEY='sb_publishable_74Lm6cc0CkoOOzy3A4IRrQ_BX0jHQcg';
 const CLOUD_ARRAYS={orders:'ps_orders',feedback:'ps_feedback',customers:'ps_customers',broadcasts:'ps_broadcasts',alerts:'ps_alerts',
   tours:'ps_tours',signups:'ps_signups',results:'ps_results',bookings:'ps_bookings',
-  sessions:'ps_sessions',maint:'ps_maint',growth:'ps_growth',highlights:'ps_highlights'};
+  sessions:'ps_sessions',maint:'ps_maint',growth:'ps_growth',highlights:'ps_highlights',
+  lockers:'ps_lockers',cues:'ps_cues'};
 // Bảng mới thêm sau: quán chưa chạy lại supabase-schema.sql thì bỏ qua, phần còn lại vẫn đồng bộ
-const CLOUD_OPTIONAL={highlights:1};
+const CLOUD_OPTIONAL={highlights:1,lockers:1,cues:1};
 const Cloud={
   sb:null,enabled:false,status:'off',onStatus:null,
   init(){
@@ -551,6 +552,36 @@ function TierChip({t,big}){
   if(!t)return null;
   return <span className="chip a" style={big?{fontSize:13,padding:'5px 11px'}:null}>{t.icon} {t.name}</span>;
 }
+
+/* ===== Gậy & tủ =====
+   Tủ gửi gậy: khách quen thuê ô tủ theo tháng để gửi cơ tại quán.
+   Gậy quán: cơ của quán cho khách mượn theo bàn, theo dõi tình trạng. */
+const SEED_LOCKERS=(()=>{
+  const a=[];
+  for(let i=1;i<=12;i++)a.push({id:'lk'+i,no:i,size:i<=8?'Thường':'To',fee:i<=8?50000:80000,
+    custId:'',custName:'',phone:'',cue:'',startDate:'',dueDate:'',note:''});
+  return a;
+})();
+const SEED_CUES=[
+  {id:'cu1',code:'G-01',name:'Cơ chơi 12.5mm',type:'Cơ chơi',cond:'good',outTable:'',outTs:0,note:''},
+  {id:'cu2',code:'G-02',name:'Cơ chơi 12.5mm',type:'Cơ chơi',cond:'good',outTable:'',outTs:0,note:''},
+  {id:'cu3',code:'G-03',name:'Cơ chơi 13mm',type:'Cơ chơi',cond:'good',outTable:'',outTs:0,note:''},
+  {id:'cu4',code:'G-04',name:'Cơ phá bi',type:'Cơ phá',cond:'good',outTable:'',outTs:0,note:''},
+  {id:'cu5',code:'G-05',name:'Cơ lỗ 11mm',type:'Cơ lỗ',cond:'fix',outTable:'',outTs:0,note:'Đầu cơ mòn, cần chuốt lại'},
+  {id:'cu6',code:'G-06',name:'Cơ tập cho khách mới',type:'Cơ chơi',cond:'good',outTable:'',outTs:0,note:''},
+];
+const CUE_TYPES=['Cơ chơi','Cơ phá','Cơ lỗ','Khác'];
+const CUE_COND={good:{label:'Tốt',chip:'gr'},fix:{label:'Cần bảo dưỡng',chip:'a'},broken:{label:'Hỏng',chip:'r'}};
+const lockerBusy=l=>!!(l&&l.custId);
+// Trạng thái hạn thuê tủ: quá hạn (đỏ) · sắp hết ≤7 ngày (vàng) · còn hạn
+const dueChip=(d)=>{
+  if(!d)return null;
+  const n=daysLeft(d);
+  if(n<0)return {label:'quá hạn '+(-n)+' ngày',chip:'r',late:true};
+  if(n<=7)return {label:'còn '+n+' ngày',chip:'a',soon:true};
+  return {label:'đến '+fmtDateVN(d),chip:''};
+};
+const lockerOfCust=(lockers,custId)=>(lockers||[]).find(l=>l.custId===custId)||null;
 const SHIFT_TIME={morning:{label:'Sáng',start:'08:00',end:'16:00',icon:'☀️'},evening:{label:'Tối',start:'16:00',end:'24:00',icon:'🌙'}};
 const GAME_MODES=['8 bi','9 bi','10 bi'];
 // Ưu đãi đẩy doanh số khung giờ vắng 8h–15h
@@ -688,6 +719,8 @@ function App(){
   const [bookings,setBookings]=usePersist('ps.bookings',[]);
   const [sessions,setSessions]=usePersist('ps.sessions',[]);
   const [highlights,setHighlights]=usePersist('ps.highlights',[]);
+  const [lockers,setLockers]=usePersist('ps.lockers',SEED_LOCKERS);
+  const [cues,setCues]=usePersist('ps.cues',SEED_CUES);
   const [maint,setMaint]=usePersist('ps.maint',SEED_MAINT);
   const [growth,setGrowth]=usePersist('ps.growth',SEED_GROWTH);
   const [fbSeen,setFbSeen]=usePersist('ps.fbSeen',0);
@@ -751,6 +784,8 @@ function App(){
   const setBookingsC=cloudArr(setBookings,'ps_bookings');
   const setSessionsC=cloudArr(setSessions,'ps_sessions');
   const setHighlightsC=cloudArr(setHighlights,'ps_highlights');
+  const setLockersC=cloudArr(setLockers,'ps_lockers');
+  const setCuesC=cloudArr(setCues,'ps_cues');
   const setMaintC=cloudArr(setMaint,'ps_maint');
   const setGrowthC=cloudArr(setGrowth,'ps_growth');
   const setMenuC=cloudKv(setMenu,'menu');
@@ -760,7 +795,7 @@ function App(){
 
   // Giữ giá trị mới nhất cho bước seed cloud (tránh dùng giá trị cũ lúc mount)
   const latest=useRef({});
-  latest.current={menu,tables,promos,tiers,customers,tours,maint,growth};
+  latest.current={menu,tables,promos,tiers,customers,tours,maint,growth,lockers,cues};
 
   // Kết nối cloud: tải dữ liệu chung + lắng nghe realtime. Lỗi/chưa chạy SQL → chạy cục bộ.
   useEffect(()=>{
@@ -782,6 +817,8 @@ function App(){
         setBookings(d.bookings||[]);
         setSessions(d.sessions||[]);
         if(d.highlights)setHighlights(d.highlights); // null = chưa có bảng ps_highlights → giữ dữ liệu cục bộ
+        if(d.lockers){ if(d.lockers.length)setLockers(d.lockers); else (L.lockers||[]).forEach(x=>Cloud.upsertRow('ps_lockers',x)); }
+        if(d.cues){ if(d.cues.length)setCues(d.cues); else (L.cues||[]).forEach(x=>Cloud.upsertRow('ps_cues',x)); }
         if(d.maint&&d.maint.length)setMaint(d.maint); else (L.maint||[]).forEach(x=>Cloud.upsertRow('ps_maint',x));
         if(d.growth&&d.growth.length)setGrowth(d.growth); else (L.growth||[]).forEach(x=>Cloud.upsertRow('ps_growth',x));
         if(d.customers&&d.customers.length)setCustomers(d.customers.map(normCust));
@@ -809,6 +846,8 @@ function App(){
         subs.push(Cloud.subscribe('ps_bookings',p=>applyRealtime(setBookings,p)));
         subs.push(Cloud.subscribe('ps_sessions',p=>applyRealtime(setSessions,p)));
         if(d.highlights)subs.push(Cloud.subscribe('ps_highlights',p=>applyRealtime(setHighlights,p)));
+        if(d.lockers)subs.push(Cloud.subscribe('ps_lockers',p=>applyRealtime(setLockers,p)));
+        if(d.cues)subs.push(Cloud.subscribe('ps_cues',p=>applyRealtime(setCues,p)));
         subs.push(Cloud.subscribe('ps_maint',p=>applyRealtime(setMaint,p)));
         subs.push(Cloud.subscribe('ps_growth',p=>applyRealtime(setGrowth,p)));
         subs.push(Cloud.sb.channel('rt_ps_kv').on('postgres_changes',{event:'*',schema:'public',table:'ps_kv'},p=>{
@@ -835,12 +874,13 @@ function App(){
   const openTables=sessions.filter(x=>!x.endTs).length; // bàn đang chơi
   const newFb=feedback.filter(f=>f.ts>(fbSeen||0)).length; // góp ý mới cho quản lý
   const newHl=highlights.filter(h=>h.status==='pending').length; // yêu cầu cắt clip chờ xử lý
+  const lockerAlerts=lockers.filter(l=>lockerBusy(l)&&l.dueDate&&daysLeft(l.dueDate)<0).length; // tủ quá hạn thuê
 
   const NAV_BY_ROLE={
-    manager:['manage','desk','tasks','attend','cust'],
-    staff:['desk','order','tasks','train','attend'],
-    counter:['counter','desk','inventory','cust','attend'],
-    organizer:['tours','cust','attend','train'],
+    manager:['manage','desk','cue','tasks','attend','cust'],
+    staff:['desk','order','cue','tasks','train','attend'],
+    counter:['counter','desk','cue','inventory','cust','attend'],
+    organizer:['tours','cust','attend'], // tổ chức giải không cần đào tạo nhân viên
   };
   const DEFAULT_VIEW={manager:'manage',counter:'counter',staff:'desk',organizer:'tours'};
   // Về màn mặc định đúng vai khi đăng nhập
@@ -862,7 +902,7 @@ function App(){
       return <Login staff={staff} onPick={setMeId} customers={customers} setCustomers={setCustomersC} onCust={setMeId} cloud={cloud}/>;
     }
     return <CustomerApp cust={custMe} tables={tables} menu={menu} orders={orders} setOrders={setOrdersC}
-      promos={promos} tiers={tiers} customers={customers} setCustomers={setCustomersC} feedback={feedback} setFeedback={setFeedbackC}
+      promos={promos} tiers={tiers} lockers={lockers} customers={customers} setCustomers={setCustomersC} feedback={feedback} setFeedback={setFeedbackC}
       alerts={alerts} setAlerts={setAlertsC} tours={tours} signups={signups} setSignups={setSignupsC}
       bookings={bookings} setBookings={setBookingsC}
       highlights={highlights} setHighlights={setHighlightsC}
@@ -876,7 +916,7 @@ function App(){
     customers,setCustomers:setCustomersC,promos,setPromos:setPromosC,tiers,setTiers:setTiersC,tours,setTours:setToursC,
     signups,setSignups:setSignupsC,results,setResults:setResultsC,bookings,setBookings:setBookingsC,
     sessions,setSessions:setSessionsC,maint,setMaint:setMaintC,growth,setGrowth:setGrowthC,
-    highlights,setHighlights:setHighlightsC,
+    highlights,setHighlights:setHighlightsC,lockers,setLockers:setLockersC,cues,setCues:setCuesC,
     feedback,setFeedback:setFeedbackC,penaltyRules,setPenaltyRules,
     violations,setViolations,outfood,setOutfood,inventory,setInventory,endTasks,setEndTasks,
     broadcasts,setBroadcasts:setBroadcastsC,alerts,setAlerts:setAlertsC,fbSeen,setFbSeen,cloud,flash};
@@ -885,6 +925,7 @@ function App(){
     order:{label:'Báo món',icon:'ti-glass-full',badge:pendingCount+openAlerts+newBookings},
     counter:{label:'Quầy',icon:'ti-cash-register',badge:pendingCount+openAlerts+newBookings},
     inventory:{label:'Kiểm kho',icon:'ti-box-seam'},
+    cue:{label:'Gậy & tủ',icon:'ti-cricket',badge:lockerAlerts},
     tasks:{label:'Đầu việc',icon:'ti-checklist'},
     train:{label:'Đào tạo',icon:'ti-school'},
     attend:{label:'Chấm công',icon:'ti-clock-hour-4'},
@@ -895,7 +936,7 @@ function App(){
   };
   const navItems=(NAV_BY_ROLE[me.role]||NAV_BY_ROLE.staff).map(id=>({id,...NAV_DEF[id]}));
   const TITLES={order:['Báo món','Gửi order từ bàn về quầy'],counter:['Quầy phục vụ','Order · yêu cầu · đặt bàn'],
-    inventory:['Kiểm kho','Đếm & theo dõi tồn hàng'],tasks:['Đầu việc theo ca','Checklist việc quán sáng / tối'],
+    inventory:['Kiểm kho','Đếm & theo dõi tồn hàng'],cue:['Gậy & tủ','Tủ gửi gậy của khách · cơ của quán'],tasks:['Đầu việc theo ca','Checklist việc quán sáng / tối'],
     train:['Đào tạo nhân viên','Học cách quán vận hành'],attend:['Chấm công','Lịch ca · giờ làm · lỗi phạt'],
     cust:['Khách hàng','Tích điểm · VIP · feedback'],manage:['Quản lý','Sổ sách · doanh số · KM · lương'],
     tours:['Tổ chức giải','Lịch giải · đăng ký · kết quả'],desk:['Bàn','Mở / tắt bàn & chốt bill']};
@@ -934,6 +975,7 @@ function App(){
           {view==='order'&&<OrderView s={shared}/>}
           {view==='counter'&&<CounterView s={shared}/>}
           {view==='inventory'&&<InventoryView s={shared}/>}
+          {view==='cue'&&<CueView s={shared}/>}
           {view==='tasks'&&<TasksView s={shared}/>}
           {view==='train'&&<TrainView s={shared}/>}
           {view==='attend'&&<AttendView s={shared}/>}
@@ -3433,8 +3475,238 @@ function InventoryView({s}){
   );
 }
 
+/* ================= Gậy & tủ ================= */
+function CueView({s}){
+  const {lockers,setLockers,cues,setCues,customers,tables,me,isManager,flash}=s;
+  const [sec,setSec]=useState('locker'); // locker | cue
+  const [edit,setEdit]=useState(null);   // ô tủ đang mở
+  const list=[...lockers].sort((a,b)=>(Number(a.no)||0)-(Number(b.no)||0));
+  const busy=list.filter(lockerBusy);
+  const late=busy.filter(l=>l.dueDate&&daysLeft(l.dueDate)<0);
+  const soon=busy.filter(l=>l.dueDate&&daysLeft(l.dueDate)>=0&&daysLeft(l.dueDate)<=7);
+  const out=cues.filter(c=>c.outTable);
+  const bad=cues.filter(c=>c.cond!=='good');
+  const addLocker=()=>{
+    const no=list.reduce((a,l)=>Math.max(a,Number(l.no)||0),0)+1;
+    setLockers(v=>[...v,{id:uid(),no,size:'Thường',fee:50000,custId:'',custName:'',phone:'',cue:'',startDate:'',dueDate:'',note:''}]);
+    flash('Đã thêm ô tủ số '+no);
+  };
+  return (
+    <div>
+      <div className="seg">
+        <button className={sec==='locker'?'on':''} onClick={()=>setSec('locker')}><i className="ti ti-lock"/>Tủ gửi gậy {late.length>0&&`(${late.length})`}</button>
+        <button className={sec==='cue'?'on':''} onClick={()=>setSec('cue')}><i className="ti ti-cricket"/>Gậy của quán</button>
+      </div>
+
+      {sec==='locker'&&<div>
+        <div className="grid-stat">
+          <div className="stat"><div className="ic g"><i className="ti ti-lock-open"/></div><div className="n">{list.length-busy.length}/{list.length}</div><div className="l">Ô tủ còn trống</div></div>
+          <div className="stat"><div className="ic a"><i className="ti ti-clock-exclamation"/></div><div className="n">{soon.length}</div><div className="l">Sắp hết hạn</div></div>
+          <div className="stat"><div className="ic r"><i className="ti ti-alert-triangle"/></div><div className="n">{late.length}</div><div className="l">Quá hạn</div></div>
+        </div>
+
+        {(late.length>0||soon.length>0)&&(
+          <div className="panel">
+            <div className="panel-h"><i className="ti ti-bell-ringing lead" style={{color:'var(--amber)'}}/><b>Cần nhắc khách đóng phí</b></div>
+            <div className="panel-b" style={{paddingTop:6}}>
+              {[...late,...soon].map(l=>{const d=dueChip(l.dueDate);return (
+                <div className="row" key={l.id} onClick={()=>setEdit(l)} style={{cursor:'pointer'}}>
+                  <span style={{fontSize:20}}>🔐</span>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontWeight:600}}>Tủ {l.no} · {l.custName}</div>
+                    <div className="hint">{l.phone||'—'}{l.cue?' · '+l.cue:''}</div>
+                  </div>
+                  <span className={'chip '+d.chip}>{d.label}</span>
+                </div>
+              );})}
+            </div>
+          </div>
+        )}
+
+        <div className="panel">
+          <div className="panel-h"><i className="ti ti-lock lead"/><b>Sơ đồ tủ</b><span className="hint">bấm ô để gán / trả</span>
+            {isManager&&<button className="btn ghost sm" onClick={addLocker}><i className="ti ti-plus"/>Thêm ô</button>}
+          </div>
+          <div className="panel-b">
+            <div className="tablegrid">
+              {list.map(l=>{
+                const d=lockerBusy(l)?dueChip(l.dueDate):null;
+                const color=!lockerBusy(l)?null:(d&&d.late?'var(--red)':(d&&d.soon?'var(--amber)':'var(--grn)'));
+                return (
+                  <button key={l.id} className={'tbl'+(lockerBusy(l)?' on':'')} onClick={()=>setEdit(l)}
+                    style={color?{borderColor:color,background:'var(--bg)'}:null}>
+                    <span className="ty">{l.size}</span><span className="no">{l.no}</span>
+                    {lockerBusy(l)
+                      ? <span style={{fontSize:9.5,fontWeight:700,color,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',maxWidth:'100%'}}>{l.custName.split(' ').slice(-2).join(' ')}</span>
+                      : <span style={{fontSize:9.5,color:'var(--muted2)'}}>trống</span>}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="hint" style={{marginTop:10}}>Viền xanh = đang thuê · vàng = sắp hết hạn · đỏ = quá hạn. Ô trống thì bấm để cho khách thuê.</p>
+          </div>
+        </div>
+      </div>}
+
+      {sec==='cue'&&<CueStock cues={cues} setCues={setCues} tables={tables} me={me} isManager={isManager} flash={flash}/>}
+
+      {edit&&<LockerModal lk={edit} lockers={lockers} setLockers={setLockers} customers={customers} isManager={isManager}
+        onClose={()=>setEdit(null)} flash={flash}/>}
+    </div>
+  );
+}
+function LockerModal({lk,lockers,setLockers,customers,isManager,onClose,flash}){
+  const cur=lockers.find(x=>x.id===lk.id)||lk;
+  const [f,setF]=useState(()=>({custId:cur.custId||'',cue:cur.cue||'',size:cur.size||'Thường',
+    fee:cur.fee||0,startDate:cur.startDate||today(),dueDate:cur.dueDate||addDays(today(),30),note:cur.note||''}));
+  const patch=(obj)=>setLockers(v=>v.map(x=>x.id===cur.id?{...x,...obj}:x));
+  const save=()=>{
+    const c=customers.find(x=>x.id===f.custId);
+    if(!c){flash('Chọn khách thuê tủ');return;}
+    if(lockers.some(x=>x.id!==cur.id&&x.custId===c.id)){flash(c.name+' đang thuê ô tủ khác rồi');return;}
+    patch({custId:c.id,custName:c.name,phone:c.phone||'',cue:f.cue.trim(),size:f.size,
+      fee:Number(f.fee)||0,startDate:f.startDate,dueDate:f.dueDate,note:f.note.trim()});
+    flash('Tủ '+cur.no+' → '+c.name+' ✓');onClose();
+  };
+  const renew=()=>{
+    const base=cur.dueDate&&daysLeft(cur.dueDate)>0?cur.dueDate:today();
+    const d=addDays(base,30);
+    patch({dueDate:d});setF({...f,dueDate:d});flash('Đã gia hạn tới '+fmtDateVN(d));
+  };
+  const free=()=>{
+    if(!confirm('Trả tủ '+cur.no+' (khách lấy gậy về)?'))return;
+    patch({custId:'',custName:'',phone:'',cue:'',startDate:'',dueDate:'',note:''});
+    flash('Tủ '+cur.no+' đã trống');onClose();
+  };
+  const del=()=>{
+    if(lockerBusy(cur)){flash('Trả tủ trước khi xoá ô');return;}
+    if(!confirm('Xoá hẳn ô tủ số '+cur.no+'?'))return;
+    setLockers(v=>v.filter(x=>x.id!==cur.id));onClose();
+  };
+  const d=lockerBusy(cur)?dueChip(cur.dueDate):null;
+  return (
+    <Modal title={'Tủ số '+cur.no} onClose={onClose}
+      foot={lockerBusy(cur)
+        ? <div className="rowbtns">
+            <button className="btn ghost" style={{flex:1}} onClick={free}><i className="ti ti-lock-open"/>Trả tủ</button>
+            <button className="btn" style={{flex:1}} onClick={renew}><i className="ti ti-calendar-plus"/>Gia hạn 1 tháng</button>
+          </div>
+        : <button className="btn block wide" onClick={save}><i className="ti ti-check"/>Cho thuê ô tủ này</button>}>
+      {lockerBusy(cur)&&(
+        <div className="card" style={{background:'var(--bg)',marginBottom:14}}>
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <div style={{flex:1}}>
+              <div style={{fontWeight:700,fontSize:15}}>{cur.custName}</div>
+              <div className="hint">{cur.phone||'chưa có SĐT'} · thuê từ {cur.startDate?fmtDateVN(cur.startDate):'—'}</div>
+            </div>
+            {d&&<span className={'chip '+d.chip}>{d.label}</span>}
+          </div>
+          {cur.cue&&<div className="hint" style={{marginTop:7}}>🎱 Gậy gửi: {cur.cue}</div>}
+          {cur.note&&<div className="hint" style={{marginTop:3}}>Ghi chú: {cur.note}</div>}
+          <div className="hint" style={{marginTop:3}}>Phí thuê: {fmtVnd(cur.fee)}/tháng</div>
+        </div>
+      )}
+      {!lockerBusy(cur)&&(
+        <div>
+          <label className="fld"><span>Khách thuê</span>
+            <select className="inp" value={f.custId} onChange={e=>setF({...f,custId:e.target.value})}>
+              <option value="">— Chọn khách quen —</option>
+              {customers.map(c=><option key={c.id} value={c.id}>{c.name}{c.phone?' · '+c.phone:''}</option>)}
+            </select>
+          </label>
+          <label className="fld"><span>Gậy khách gửi</span>
+            <input className="inp" value={f.cue} onChange={e=>setF({...f,cue:e.target.value})} placeholder="VD: Mezz EC7 + bao da đen"/></label>
+          <div style={{display:'flex',gap:9,flexWrap:'wrap'}}>
+            <label className="fld" style={{flex:1,minWidth:120}}><span>Bắt đầu</span>
+              <input className="inp" type="date" value={f.startDate} onChange={e=>setF({...f,startDate:e.target.value,dueDate:addDays(e.target.value,30)})}/></label>
+            <label className="fld" style={{flex:1,minWidth:120}}><span>Hết hạn</span>
+              <input className="inp" type="date" value={f.dueDate} onChange={e=>setF({...f,dueDate:e.target.value})}/></label>
+          </div>
+          <div style={{display:'flex',gap:9,flexWrap:'wrap'}}>
+            <label className="fld" style={{width:120}}><span>Cỡ tủ</span>
+              <select className="inp" value={f.size} onChange={e=>setF({...f,size:e.target.value})}>
+                <option>Thường</option><option>To</option></select></label>
+            <label className="fld" style={{flex:1,minWidth:120}}><span>Phí thuê (đ/tháng)</span>
+              <input className="inp" type="number" min="0" step="10000" value={f.fee} onChange={e=>setF({...f,fee:e.target.value})}/></label>
+          </div>
+          <label className="fld"><span>Ghi chú</span>
+            <input className="inp" value={f.note} onChange={e=>setF({...f,note:e.target.value})} placeholder="VD: đã thu tiền tháng đầu"/></label>
+        </div>
+      )}
+      {isManager&&!lockerBusy(cur)&&<button className="btn ghost sm" onClick={del}><i className="ti ti-trash"/>Xoá ô tủ này</button>}
+    </Modal>
+  );
+}
+function CueStock({cues,setCues,tables,me,isManager,flash}){
+  const [nf,setNf]=useState({code:'',name:'',type:CUE_TYPES[0]});
+  const out=cues.filter(c=>c.outTable);
+  const add=()=>{
+    if(!nf.name.trim()){flash('Nhập tên gậy');return;}
+    setCues(v=>[...v,{id:uid(),code:nf.code.trim()||('G-'+pad(v.length+1)),name:nf.name.trim(),type:nf.type,
+      cond:'good',outTable:'',outTs:0,note:''}]);
+    setNf({code:'',name:'',type:CUE_TYPES[0]});flash('Đã thêm gậy');
+  };
+  const del=(c)=>{if(confirm('Xoá gậy '+c.code+'?'))setCues(v=>v.filter(x=>x.id!==c.id));};
+  const setCond=(c)=>{
+    const next=c.cond==='good'?'fix':(c.cond==='fix'?'broken':'good');
+    setCues(v=>v.map(x=>x.id===c.id?{...x,cond:next}:x));
+  };
+  const lend=(c)=>{
+    const no=prompt('Cho bàn số mấy mượn gậy '+c.code+'?','');
+    if(no===null)return;
+    const t=tables.find(x=>String(x.no)===String(no).trim());
+    if(!t){flash('Không có bàn số '+no);return;}
+    setCues(v=>v.map(x=>x.id===c.id?{...x,outTable:t.no,outTs:Date.now(),outBy:me.name}:x));
+    flash(c.code+' → bàn '+t.no);
+  };
+  const back=(c)=>{setCues(v=>v.map(x=>x.id===c.id?{...x,outTable:'',outTs:0}:x));flash(c.code+' đã về giá ✓');};
+  return (
+    <div>
+      <div className="grid-stat">
+        <div className="stat"><div className="ic g"><i className="ti ti-cricket"/></div><div className="n">{cues.length}</div><div className="l">Gậy của quán</div></div>
+        <div className="stat"><div className="ic b"><i className="ti ti-arrow-right-circle"/></div><div className="n">{out.length}</div><div className="l">Đang cho mượn</div></div>
+        <div className="stat"><div className="ic r"><i className="ti ti-tool"/></div><div className="n">{cues.filter(c=>c.cond!=='good').length}</div><div className="l">Cần sửa / hỏng</div></div>
+      </div>
+      <div className="panel">
+        <div className="panel-h"><i className="ti ti-cricket lead"/><b>Giá gậy</b><span className="hint">bấm tình trạng để đổi</span></div>
+        <div className="panel-b" style={{paddingTop:6}}>
+          {cues.length===0&&<Empty icon="ti-cricket" text="Chưa có gậy nào của quán"/>}
+          {cues.map(c=>{const cd=CUE_COND[c.cond]||CUE_COND.good;return (
+            <div className="row" key={c.id}>
+              <span style={{fontSize:20}}>🎱</span>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontWeight:600}}>{c.code} · {c.name}</div>
+                <div className="hint">{c.type}{c.outTable?' · đang ở bàn '+c.outTable:''}{c.note?' · '+c.note:''}</div>
+              </div>
+              <button className={'chip '+cd.chip} onClick={()=>setCond(c)} title="Đổi tình trạng">{cd.label}</button>
+              {c.outTable
+                ? <button className="btn sm" onClick={()=>back(c)}><i className="ti ti-arrow-back-up"/>Đã trả</button>
+                : <button className="btn ghost sm" onClick={()=>lend(c)} disabled={c.cond==='broken'}><i className="ti ti-arrow-right"/>Cho mượn</button>}
+              {isManager&&<button className="iconbtn" style={{padding:6,border:0,background:'none'}} onClick={()=>del(c)}><i className="ti ti-trash" style={{fontSize:16}}/></button>}
+            </div>
+          );})}
+          {isManager&&<>
+            <div className="sep"/>
+            <div style={{fontWeight:700,fontSize:13,marginBottom:8}}>Thêm gậy</div>
+            <div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'flex-end'}}>
+              <label className="fld" style={{width:90,marginBottom:0}}><span>Mã</span>
+                <input className="inp" value={nf.code} onChange={e=>setNf({...nf,code:e.target.value})} placeholder="G-07"/></label>
+              <label className="fld" style={{flex:1,minWidth:130,marginBottom:0}}><span>Tên gậy</span>
+                <input className="inp" value={nf.name} onChange={e=>setNf({...nf,name:e.target.value})} placeholder="VD: Cơ chơi 12.5mm"/></label>
+              <label className="fld" style={{width:110,marginBottom:0}}><span>Loại</span>
+                <select className="inp" value={nf.type} onChange={e=>setNf({...nf,type:e.target.value})}>
+                  {CUE_TYPES.map(t=><option key={t}>{t}</option>)}</select></label>
+              <button className="btn" onClick={add}><i className="ti ti-plus"/>Thêm</button>
+            </div>
+          </>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ================= App cho KHÁCH HÀNG ================= */
-function CustomerApp({cust,tables,menu,orders,setOrders,promos,tiers,customers,setCustomers,feedback,setFeedback,alerts,setAlerts,tours,signups,setSignups,bookings,setBookings,highlights,setHighlights,broadcasts,cloud,dark,setDark,onLogout,flash}){
+function CustomerApp({cust,tables,menu,orders,setOrders,promos,tiers,lockers,customers,setCustomers,feedback,setFeedback,alerts,setAlerts,tours,signups,setSignups,bookings,setBookings,highlights,setHighlights,broadcasts,cloud,dark,setDark,onLogout,flash}){
   const [view,setView]=useState('order');
   const [readBc,setReadBc]=usePersist('ps.readBc',[]);
   const myOrders=orders.filter(o=>o.by===('c:'+cust.id)).slice(0,20);
@@ -3469,7 +3741,7 @@ function CustomerApp({cust,tables,menu,orders,setOrders,promos,tiers,customers,s
           {view==='book'&&<CustBooking cust={cust} tables={tables} bookings={myBook} setBookings={setBookings} flash={flash}/>}
           {view==='hl'&&<CustHighlight cust={cust} tables={tables} mine={myHl} setHighlights={setHighlights} flash={flash}/>}
           {view==='tour'&&<CustTours cust={cust} tours={tours} signups={signups} setSignups={setSignups} flash={flash}/>}
-          {view==='points'&&<CustPoints cust={cust} promos={promos} tiers={tiers}/>}
+          {view==='points'&&<CustPoints cust={cust} promos={promos} tiers={tiers} locker={lockerOfCust(lockers,cust.id)}/>}
           {view==='noti'&&<CustNoti broadcasts={broadcasts}/>}
           {view==='fb'&&<CustFeedback cust={cust} setFeedback={setFeedback} flash={flash}/>}
         </div>
@@ -3745,7 +4017,7 @@ function CustOrder({cust,tables,menu,promos,orders,setOrders,alerts,setAlerts,fl
     </div>
   );
 }
-function CustPoints({cust,promos,tiers}){
+function CustPoints({cust,promos,tiers,locker}){
   const live=(promos||[]).filter(promoActive);
   const L=tierLevels(tiers);
   const tier=tierOf(tiers,cust.hours), nx=nextTier(tiers,cust.hours);
@@ -3787,6 +4059,24 @@ function CustPoints({cust,promos,tiers}){
           <p className="hint" style={{marginTop:10}}>Giờ chơi được cộng khi quán chốt bill có gắn tên bạn. Mỗi giờ chơi = {tiers.ptsPerHour||0} điểm.</p>
         </div>
       </div>
+
+      {locker&&(()=>{const d=dueChip(locker.dueDate);return (
+        <div className="panel">
+          <div className="panel-h"><i className="ti ti-lock lead"/><b>Tủ gậy của tôi</b>{d&&<span className={'chip '+d.chip}>{d.label}</span>}</div>
+          <div className="panel-b">
+            <div style={{display:'flex',alignItems:'center',gap:12}}>
+              <div style={{fontFamily:'"Baloo 2"',fontSize:34,fontWeight:800,color:'var(--g)'}}>#{locker.no}</div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontWeight:600}}>Tủ {locker.size?locker.size.toLowerCase():''} · {fmtVnd(locker.fee)}/tháng</div>
+                <div className="hint">{locker.cue?'🎱 '+locker.cue:'Chưa ghi gậy gửi'}</div>
+              </div>
+            </div>
+            <p className="hint" style={{marginTop:9}}>{d&&d.late
+              ?'Tủ đã quá hạn — báo quầy đóng phí để giữ tủ nhé.'
+              :'Cần lấy gậy hoặc gia hạn thì báo quầy.'}</p>
+          </div>
+        </div>
+      );})()}
 
       <div className="panel">
         <div className="panel-h"><i className="ti ti-gift lead"/><b>Quà của tôi</b>

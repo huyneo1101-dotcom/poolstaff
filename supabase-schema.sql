@@ -57,6 +57,14 @@ create table if not exists ps_growth (
 create table if not exists ps_highlights (
   id text primary key, data jsonb, updated_at timestamptz default now()
 );
+-- Tủ gửi gậy của khách (thuê theo tháng)
+create table if not exists ps_lockers (
+  id text primary key, data jsonb, updated_at timestamptz default now()
+);
+-- Gậy (cơ) của quán cho khách mượn
+create table if not exists ps_cues (
+  id text primary key, data jsonb, updated_at timestamptz default now()
+);
 
 -- 2) RLS + POLICY (prototype: cho phép anon đọc/ghi) --------
 alter table ps_orders     enable row level security;
@@ -73,6 +81,8 @@ alter table ps_sessions   enable row level security;
 alter table ps_maint      enable row level security;
 alter table ps_growth     enable row level security;
 alter table ps_highlights enable row level security;
+alter table ps_lockers    enable row level security;
+alter table ps_cues       enable row level security;
 
 drop policy if exists ps_orders_all     on ps_orders;
 drop policy if exists ps_feedback_all    on ps_feedback;
@@ -88,6 +98,8 @@ drop policy if exists ps_sessions_all    on ps_sessions;
 drop policy if exists ps_maint_all       on ps_maint;
 drop policy if exists ps_growth_all      on ps_growth;
 drop policy if exists ps_highlights_all  on ps_highlights;
+drop policy if exists ps_lockers_all     on ps_lockers;
+drop policy if exists ps_cues_all        on ps_cues;
 
 create policy ps_orders_all     on ps_orders     for all using (true) with check (true);
 create policy ps_feedback_all   on ps_feedback   for all using (true) with check (true);
@@ -103,6 +115,8 @@ create policy ps_sessions_all   on ps_sessions   for all using (true) with check
 create policy ps_maint_all      on ps_maint      for all using (true) with check (true);
 create policy ps_growth_all     on ps_growth     for all using (true) with check (true);
 create policy ps_highlights_all on ps_highlights for all using (true) with check (true);
+create policy ps_lockers_all    on ps_lockers    for all using (true) with check (true);
+create policy ps_cues_all       on ps_cues       for all using (true) with check (true);
 
 -- 3) REALTIME — chỉ thêm bảng nào chưa có (chạy lại nhiều lần không lỗi) --
 do $$
@@ -110,7 +124,7 @@ declare t text;
 begin
   foreach t in array array['ps_orders','ps_feedback','ps_customers','ps_kv','ps_broadcasts','ps_alerts',
                            'ps_tours','ps_signups','ps_results','ps_bookings',
-                           'ps_sessions','ps_maint','ps_growth','ps_highlights']
+                           'ps_sessions','ps_maint','ps_growth','ps_highlights','ps_lockers','ps_cues']
   loop
     if not exists (
       select 1 from pg_publication_tables
@@ -121,7 +135,7 @@ begin
   end loop;
 end $$;
 
--- 4) KIỂM TRA — chạy xong phải thấy đủ 14 bảng --------------
+-- 4) KIỂM TRA — chạy xong phải thấy đủ 16 bảng --------------
 select tablename as bang_da_bat_realtime
 from pg_publication_tables
 where pubname='supabase_realtime' and tablename like 'ps_%'
