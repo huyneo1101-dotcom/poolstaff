@@ -13,7 +13,7 @@ tích điểm khách, khuyến mãi, giải đấu — và app riêng cho **khá
 | **Quản lý** | Báo món | Toàn quyền + hub *Quản lý*: khuyến mãi, giải đấu, gửi tin, QR bàn, lỗi & lương, bàn, nhân viên, thực đơn |
 | **Nhân viên phục vụ** | Báo món | Báo món, đầu việc, đào tạo, chấm công, khách |
 | **Nhân viên quầy** | Quầy | Order các bàn, gọi món ngoài, kiểm kho |
-| **Khách hàng** | Đặt món | Đặt món, đặt bàn, **Highlight** (xin cắt clip & xem video), điểm tích luỹ, thông báo, góp ý |
+| **Khách hàng** | Đặt món | Đặt món, đặt bàn, **Highlight** (xin cắt clip & xem video), **hạng & quà theo giờ chơi**, thông báo, góp ý |
 
 Đăng nhập giả lập (chọn tên). Khách đăng nhập bằng **SĐT**, máy tự nhớ.
 
@@ -27,10 +27,29 @@ tích điểm khách, khuyến mãi, giải đấu — và app riêng cho **khá
 Chạy 1 lần `supabase-schema.sql` trong **Supabase → SQL Editor**. Sau đó:
 
 - **Order realtime** — order từ máy nhân viên/khách hiện ngay ở quầy
-- Đồng bộ: order · góp ý · khách & điểm · menu · bàn · khuyến mãi · thông báo · highlight
+- Đồng bộ: order · góp ý · khách & điểm/giờ chơi · menu · bàn · khuyến mãi · hạng khách · thông báo · highlight
 - Nội bộ (chấm công, đào tạo, lương, kho, giải đấu) vẫn lưu cục bộ từng máy
 
 Chưa chạy SQL / mất mạng → app vẫn chạy bình thường bằng `localStorage`. Icon ☁️ ở góc trên báo trạng thái.
+
+## Hạng khách theo giờ chơi
+
+Mỗi lần **chốt bill có gắn tên khách** (mục *Bàn*), khách được cộng **giờ chơi** + điểm (mặc định 10đ/giờ).
+Đủ mốc giờ là **lên hạng**: chiết khấu tiền bàn cao hơn và **tặng quà 1 lần** (voucher / nước / đồ ăn).
+
+| Hạng | Từ | Giảm tiền bàn | Quà khi lên hạng |
+|------|-----|---------------|------------------|
+| 🎱 Khách mới | 0h | — | — |
+| 🥉 Đồng | 10h | 5% | 1 trà đá |
+| 🥈 Bạc | 30h | 10% | 1 nước suối + 1 hướng dương |
+| 🥇 Vàng | 60h | 15% | 1 phần đồ ăn nhẹ |
+| 💎 Kim cương | 120h | 20% | Voucher 200.000đ |
+
+- Chiết khấu **tự trừ vào bill** ngay khi chọn khách trong màn chốt bill.
+- **Khách → Hạng**: quản lý sửa mốc giờ, % giảm, quà, quyền lợi; xem bảng khách chơi nhiều nhất.
+- **Khách → hồ sơ khách**: nhân viên bấm *Đã trao* khi đưa quà cho khách.
+- App khách, tab **Hạng**: hạng hiện tại, thanh tiến trình "còn bao nhiêu giờ nữa lên hạng", quà của mình.
+- Khách cũ chưa có giờ chơi thì quy đổi tạm từ điểm đã tích (10đ = 1 giờ), không mất hạng.
 
 ## Highlight — cắt clip pha bóng đẹp
 
