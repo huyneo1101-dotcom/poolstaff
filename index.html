@@ -677,6 +677,18 @@ function Modal({title,onClose,children,foot}){
     </div>
   );
 }
+// Thanh tab con dùng chung: [{id,label,icon,badge}]
+function Seg({tabs,cur,onPick}){
+  return (
+    <div className="seg">
+      {tabs.filter(Boolean).map(t=>(
+        <button key={t.id} className={cur===t.id?'on':''} onClick={()=>onPick(t.id)}>
+          <i className={'ti '+t.icon}/>{t.label}{t.badge>0&&` (${t.badge})`}
+        </button>
+      ))}
+    </div>
+  );
+}
 function Empty({icon,text}){return <div className="empty"><i className={'ti '+icon}/><p>{text}</p></div>;}
 function Toast({msg}){return msg?<div className="toast"><i className="ti ti-circle-check"/>{msg}</div>:null;}
 const CLOUD_UI={
@@ -876,13 +888,14 @@ function App(){
   const newHl=highlights.filter(h=>h.status==='pending').length; // yêu cầu cắt clip chờ xử lý
   const lockerAlerts=lockers.filter(l=>lockerBusy(l)&&l.dueDate&&daysLeft(l.dueDate)<0).length; // tủ quá hạn thuê
 
+  // Quản lý: gom theo "quản lý cái gì" — bàn (thời gian thực) · tiền · khách · người · đồ&việc · danh mục
   const NAV_BY_ROLE={
-    manager:['manage','desk','cue','tasks','attend','cust'],
+    manager:['desk','biz','cust','hr','ops','setup'],
     staff:['desk','order','cue','tasks','train','attend'],
     counter:['counter','desk','cue','inventory','cust','attend'],
     organizer:['tours','cust','attend'], // tổ chức giải không cần đào tạo nhân viên
   };
-  const DEFAULT_VIEW={manager:'manage',counter:'counter',staff:'desk',organizer:'tours'};
+  const DEFAULT_VIEW={manager:'biz',counter:'counter',staff:'desk',organizer:'tours'};
   // Về màn mặc định đúng vai khi đăng nhập
   useEffect(()=>{
     if(!meId)return; const m=staff.find(s=>s.id===meId); if(!m)return;
@@ -929,17 +942,24 @@ function App(){
     tasks:{label:'Đầu việc',icon:'ti-checklist'},
     train:{label:'Đào tạo',icon:'ti-school'},
     attend:{label:'Chấm công',icon:'ti-clock-hour-4'},
-    cust:{label:'Khách',icon:'ti-users',badge:isManager?newFb:0},
-    manage:{label:'Quản lý',icon:'ti-briefcase',badge:isManager?newHl:0},
+    cust:{label:'Khách',icon:'ti-users',badge:isManager?newFb+newHl:0},
     tours:{label:'Giải đấu',icon:'ti-trophy'},
     desk:{label:'Bàn',icon:'ti-layout-grid',badge:openTables},
+    biz:{label:'Doanh thu',icon:'ti-chart-line'},
+    hr:{label:'Nhân sự',icon:'ti-id-badge-2'},
+    ops:{label:'Vận hành',icon:'ti-checklist',badge:lockerAlerts},
+    setup:{label:'Cài đặt',icon:'ti-settings'},
   };
   const navItems=(NAV_BY_ROLE[me.role]||NAV_BY_ROLE.staff).map(id=>({id,...NAV_DEF[id]}));
   const TITLES={order:['Báo món','Gửi order từ bàn về quầy'],counter:['Quầy phục vụ','Order · yêu cầu · đặt bàn'],
     inventory:['Kiểm kho','Đếm & theo dõi tồn hàng'],cue:['Gậy & tủ','Tủ gửi gậy của khách · cơ của quán'],tasks:['Đầu việc theo ca','Checklist việc quán sáng / tối'],
     train:['Đào tạo nhân viên','Học cách quán vận hành'],attend:['Chấm công','Lịch ca · giờ làm · lỗi phạt'],
-    cust:['Khách hàng','Tích điểm · VIP · feedback'],manage:['Quản lý','Sổ sách · doanh số · KM · lương'],
-    tours:['Tổ chức giải','Lịch giải · đăng ký · kết quả'],desk:['Bàn','Mở / tắt bàn & chốt bill']};
+    cust:['Khách hàng','Danh sách · hạng & quà · góp ý'],
+    tours:['Tổ chức giải','Lịch giải · đăng ký · kết quả'],desk:['Bàn','Mở / tắt bàn & chốt bill'],
+    biz:['Doanh thu','Sổ sách · tăng doanh số · KM · giải đấu'],
+    hr:['Nhân sự','Ca làm · lương · nhân viên · đào tạo'],
+    ops:['Vận hành quán','Đầu việc · gậy & tủ · kho · bảo trì'],
+    setup:['Cài đặt quán','Thực đơn · bàn & giá · QR bàn']};
   const t=TITLES[view]||['',''];
 
   return (
@@ -980,7 +1000,10 @@ function App(){
           {view==='train'&&<TrainView s={shared}/>}
           {view==='attend'&&<AttendView s={shared}/>}
           {view==='cust'&&<CustView s={shared}/>}
-          {view==='manage'&&isManager&&<ManageView s={shared}/>}
+          {view==='biz'&&isManager&&<BizView s={shared}/>}
+          {view==='hr'&&isManager&&<HRView s={shared}/>}
+          {view==='ops'&&isManager&&<OpsView s={shared}/>}
+          {view==='setup'&&isManager&&<SetupView s={shared}/>}
           {view==='tours'&&<OrganizerView s={shared}/>}
           {view==='desk'&&<TablesView s={shared}/>}
         </div>
@@ -1826,10 +1849,9 @@ function TrainTeam({s,training,onBack}){
 }
 
 /* ================= 4. Attendance ================= */
-function AttendView({s}){
-  const {attend,setAttend,schedule,setSchedule,staff,me,isManager,isCounter,violations,setViolations,penaltyRules,flash}=s;
-  const [tab,setTab]=useState('me'); // me | mine | team | schedule | log
-  const canLog=isManager||isCounter;
+/* Ca làm của chính mình: đồng hồ vào/ra ca + lịch sử */
+function MyShift({s}){
+  const {attend,setAttend,schedule,me,flash}=s;
   const [clock,setClock]=useState(nowHM());
   useEffect(()=>{const t=setInterval(()=>setClock(nowHM()),1000*10);return ()=>clearInterval(t);},[]);
   const d=today();
@@ -1843,18 +1865,7 @@ function AttendView({s}){
   const lateMin=(()=>{if(!myAtt.in||!mySched||mySched==='off')return null;const st=SHIFT_TIME[mySched];if(!st)return null;
     const [sh,sm]=st.start.split(':').map(Number);const inD=new Date(myAtt.in);const startMs=new Date(inD).setHours(sh,sm,0,0);
     return Math.round((myAtt.in-startMs)/60000);})();
-
   return (
-    <div>
-      <div className="seg">
-        <button className={tab==='me'?'on':''} onClick={()=>setTab('me')}><i className="ti ti-user"/>Ca của tôi</button>
-        <button className={tab==='mine'?'on':''} onClick={()=>setTab('mine')}><i className="ti ti-alert-triangle"/>Lỗi của tôi</button>
-        {isManager&&<button className={tab==='team'?'on':''} onClick={()=>setTab('team')}><i className="ti ti-users"/>Cả đội</button>}
-        {isManager&&<button className={tab==='schedule'?'on':''} onClick={()=>setTab('schedule')}><i className="ti ti-calendar"/>Phân ca</button>}
-        {canLog&&<button className={tab==='log'?'on':''} onClick={()=>setTab('log')}><i className="ti ti-flag"/>Ghi lỗi</button>}
-      </div>
-
-      {tab==='me'&&(
         <div>
           <div className="card" style={{marginBottom:16}}>
             <div className="bigclock"><div className="t">{clock}</div><div className="d">{dayName(d)}, {fmtDateVN(d)}</div></div>
@@ -1878,7 +1889,25 @@ function AttendView({s}){
           </div>
           <MyHistory attend={attend} schedule={schedule} me={me}/>
         </div>
-      )}
+  );
+}
+
+function AttendView({s}){
+  const {attend,setAttend,schedule,setSchedule,staff,me,isManager,isCounter,violations,setViolations,penaltyRules,flash}=s;
+  const [tab,setTab]=useState('me'); // me | mine | team | schedule | log
+  const canLog=isManager||isCounter;
+
+  return (
+    <div>
+      <div className="seg">
+        <button className={tab==='me'?'on':''} onClick={()=>setTab('me')}><i className="ti ti-user"/>Ca của tôi</button>
+        <button className={tab==='mine'?'on':''} onClick={()=>setTab('mine')}><i className="ti ti-alert-triangle"/>Lỗi của tôi</button>
+        {isManager&&<button className={tab==='team'?'on':''} onClick={()=>setTab('team')}><i className="ti ti-users"/>Cả đội</button>}
+        {isManager&&<button className={tab==='schedule'?'on':''} onClick={()=>setTab('schedule')}><i className="ti ti-calendar"/>Phân ca</button>}
+        {canLog&&<button className={tab==='log'?'on':''} onClick={()=>setTab('log')}><i className="ti ti-flag"/>Ghi lỗi</button>}
+      </div>
+
+      {tab==='me'&&<MyShift s={s}/>}
 
       {tab==='mine'&&<MyViolations violations={violations} me={me}/>}
       {tab==='team'&&isManager&&<TeamAttend attend={attend} schedule={schedule} staff={staff}/>}
@@ -2061,46 +2090,52 @@ function CustView({s}){
   // Mở tab Feedback = quản lý đã xem → tắt badge
   useEffect(()=>{ if(sec==='fb'&&newFb>0) setFbSeen(Date.now()); },[sec,feedback]);
   const [q,setQ]=useState('');
+  const [vipOnly,setVipOnly]=useState(false);
   const [adding,setAdding]=useState(false);
   const [detail,setDetail]=useState(null);
   const [nf,setNf]=useState({name:'',phone:''});
+  const newHl=(s.highlights||[]).filter(h=>h.status==='pending').length;
 
   const filtered=customers.filter(c=>{const t=(c.name+' '+(c.phone||'')).toLowerCase();return t.includes(q.toLowerCase());}).sort((a,b)=>b.points-a.points);
-  const list=sec==='vip'?filtered.filter(c=>c.vip):filtered;
+  const list=vipOnly?filtered.filter(c=>c.vip):filtered;
   const addCust=()=>{if(!nf.name.trim()){flash('Nhập tên khách');return;}
     setCustomers(v=>[{id:uid(),name:nf.name.trim(),phone:nf.phone.trim(),points:0,hours:0,visits:0,vip:false,games:[],photo:'',note:'',rewards:[],history:[]},...v]);
     setNf({name:'',phone:''});setAdding(false);flash('Đã thêm khách');};
 
   return (
     <div>
-      <div className="seg">
-        <button className={sec==='list'?'on':''} onClick={()=>setSec('list')}><i className="ti ti-users"/>Danh sách</button>
-        <button className={sec==='vip'?'on':''} onClick={()=>setSec('vip')}><i className="ti ti-crown"/>VIP</button>
-        <button className={sec==='tier'?'on':''} onClick={()=>setSec('tier')}><i className="ti ti-stairs-up"/>Hạng</button>
-        <button className={sec==='fb'?'on':''} onClick={()=>setSec('fb')}><i className="ti ti-message-2"/>Feedback {newFb>0&&`(${newFb} mới)`}</button>
-      </div>
+      <Seg cur={sec} onPick={setSec} tabs={[
+        {id:'list',label:'Danh sách',icon:'ti-users'},
+        {id:'tier',label:'Hạng & quà',icon:'ti-stairs-up'},
+        {id:'fb',label:'Góp ý',icon:'ti-message-2',badge:newFb},
+        isManager&&{id:'bc',label:'Gửi tin',icon:'ti-speakerphone'},
+        isManager&&{id:'hl',label:'Highlight',icon:'ti-video',badge:newHl},
+      ]}/>
 
       {sec==='fb'&&<FeedbackSection feedback={feedback} setFeedback={setFeedback} customers={customers} me={me} isManager={isManager} flash={flash}/>}
       {sec==='tier'&&<TierMgr tiers={tiers} setTiers={setTiers} customers={customers} isManager={isManager} onOpenCust={setDetail} flash={flash}/>}
-      {(sec==='list'||sec==='vip')&&(
+      {sec==='bc'&&isManager&&<BroadcastMgr broadcasts={s.broadcasts} setBroadcasts={s.setBroadcasts} promos={s.promos} tours={s.tours} customers={customers} cloud={s.cloud} flash={flash}/>}
+      {sec==='hl'&&isManager&&<HighlightMgr highlights={s.highlights} setHighlights={s.setHighlights} customers={customers} me={me} flash={flash}/>}
+      {sec==='list'&&(
       <div>
         <div style={{display:'flex',gap:9,marginBottom:14}}>
           <div className="inp" style={{display:'flex',alignItems:'center',gap:8,flex:1,padding:'0 12px'}}>
             <i className="ti ti-search" style={{color:'var(--muted2)',fontSize:18}}/>
             <input style={{border:0,outline:0,background:'none',flex:1,color:'var(--ink)',height:42}} placeholder="Tìm tên / SĐT khách" value={q} onChange={e=>setQ(e.target.value)}/>
           </div>
+          <button className={'btn '+(vipOnly?'':'ghost')} onClick={()=>setVipOnly(v=>!v)} title="Chỉ khách VIP"><i className="ti ti-crown"/></button>
           <button className="btn" onClick={()=>setAdding(true)}><i className="ti ti-user-plus"/></button>
         </div>
 
-        {sec==='list'&&<div className="grid-stat">
+        <div className="grid-stat">
           <div className="stat"><div className="ic g"><i className="ti ti-users"/></div><div className="n">{customers.length}</div><div className="l">Khách quen</div></div>
           <div className="stat"><div className="ic a"><i className="ti ti-crown"/></div><div className="n">{customers.filter(c=>c.vip).length}</div><div className="l">Khách VIP</div></div>
-        </div>}
+        </div>
 
         <div className="panel">
-          <div className="panel-h"><i className="ti ti-award lead"/><b>{sec==='vip'?'Khách VIP':'Danh sách khách (theo điểm)'}</b></div>
+          <div className="panel-h"><i className="ti ti-award lead"/><b>{vipOnly?'Khách VIP':'Danh sách khách (theo điểm)'}</b></div>
           <div className="panel-b" style={{paddingTop:4}}>
-            {list.length===0&&<Empty icon="ti-user-off" text={sec==='vip'?'Chưa có khách VIP':'Không có khách phù hợp'}/>}
+            {list.length===0&&<Empty icon="ti-user-off" text={vipOnly?'Chưa có khách VIP':'Không có khách phù hợp'}/>}
             {list.map(c=>{const t=tierOf(tiers,c.hours);return (
               <div className="custrow" key={c.id} onClick={()=>setDetail(c.id)} style={{cursor:'pointer'}}>
                 <CustPic c={c} size={42}/>
@@ -2373,47 +2408,85 @@ function FeedbackSection({feedback,setFeedback,customers,me,isManager,flash}){
 }
 
 /* ================= Settings (manager) ================= */
-function ManageView({s}){
-  const {staff,setStaff,menu,setMenu,promos,setPromos,tours,setTours,penaltyRules,setPenaltyRules,violations,attend,tables,setTables,endTasks,setEndTasks,broadcasts,setBroadcasts,customers,cloud,flash}=s;
-  const [sec,setSec]=useState('book');
-  const [oth,setOth]=useState('staff'); // mục con của "Khác"
-  const hlNew=(s.highlights||[]).filter(h=>h.status==='pending').length;
+/* ================= Các màn của QUẢN LÝ =================
+   Gom theo việc quản lý cái gì: tiền (Kinh doanh) · đồ & việc trong quán (Vận hành)
+   · người (Nhân sự) · danh mục ít đổi (Cài đặt). Khách nằm ở màn Khách.
+   Mỗi mục chỉ có 1 chỗ duy nhất, sâu tối đa 1 lớp tab. */
+function BizView({s}){
+  const [tab,setTab]=useState('book');
   return (
     <div>
-      <div className="seg">
-        <button className={sec==='book'?'on':''} onClick={()=>setSec('book')}><i className="ti ti-book"/>Sổ sách</button>
-        <button className={sec==='promo'?'on':''} onClick={()=>setSec('promo')}><i className="ti ti-gift"/>Khuyến mãi</button>
-        <button className={sec==='pay'?'on':''} onClick={()=>setSec('pay')}><i className="ti ti-cash"/>Lỗi & lương</button>
-        <button className={sec==='grow'?'on':''} onClick={()=>setSec('grow')}><i className="ti ti-chart-line"/>Tăng doanh số</button>
-        <button className={sec==='maint'?'on':''} onClick={()=>setSec('maint')}><i className="ti ti-tools"/>Bảo trì</button>
-        <button className={sec==='tour'?'on':''} onClick={()=>setSec('tour')}><i className="ti ti-trophy"/>Giải đấu</button>
-        <button className={sec==='hl'?'on':''} onClick={()=>setSec('hl')}><i className="ti ti-video"/>Highlight {hlNew>0&&`(${hlNew})`}</button>
-        <button className={sec==='bc'?'on':''} onClick={()=>setSec('bc')}><i className="ti ti-speakerphone"/>Gửi tin</button>
-        <button className={sec==='other'?'on':''} onClick={()=>setSec('other')}><i className="ti ti-dots"/>Khác</button>
-      </div>
-      {sec==='book'&&<Ledger sessions={s.sessions} tours={tours} signups={s.signups}/>}
-      {sec==='grow'&&<GrowthView sessions={s.sessions} customers={customers} growth={s.growth} setGrowth={s.setGrowth} flash={flash}/>}
-      {sec==='maint'&&<MaintView maint={s.maint} setMaint={s.setMaint} flash={flash}/>}
-      {sec==='promo'&&<PromoMgr promos={promos} setPromos={setPromos} flash={flash}/>}
-      {sec==='pay'&&<PenaltyPayroll penaltyRules={penaltyRules} setPenaltyRules={setPenaltyRules} violations={violations} attend={attend} staff={staff} flash={flash}/>}
-      {sec==='tour'&&<TourMgr tours={tours} setTours={setTours} signups={s.signups} flash={flash}/>}
-      {sec==='hl'&&<HighlightMgr highlights={s.highlights} setHighlights={s.setHighlights} customers={customers} me={s.me} flash={flash}/>}
-      {sec==='bc'&&<BroadcastMgr broadcasts={broadcasts} setBroadcasts={setBroadcasts} promos={promos} tours={tours} customers={customers} cloud={cloud} flash={flash}/>}
-      {sec==='other'&&(
-        <div>
-          <p className="hint" style={{marginBottom:10}}>Các danh mục cố định, ít phải đổi.</p>
-          <div className="seg">
-            <button className={oth==='staff'?'on':''} onClick={()=>setOth('staff')}><i className="ti ti-users"/>Nhân viên</button>
-            <button className={oth==='menu'?'on':''} onClick={()=>setOth('menu')}><i className="ti ti-list"/>Thực đơn</button>
-            <button className={oth==='tables'?'on':''} onClick={()=>setOth('tables')}><i className="ti ti-layout-grid"/>Bàn</button>
-            <button className={oth==='qr'?'on':''} onClick={()=>setOth('qr')}><i className="ti ti-qrcode"/>QR bàn</button>
-          </div>
-          {oth==='staff'&&<StaffMgr staff={staff} setStaff={setStaff} flash={flash}/>}
-          {oth==='menu'&&<MenuMgr menu={menu} setMenu={setMenu} flash={flash}/>}
-          {oth==='tables'&&<BanMgr tables={tables} setTables={setTables} endTasks={endTasks} setEndTasks={setEndTasks} flash={flash}/>}
-          {oth==='qr'&&<QRMgr tables={tables} cloud={cloud}/>}
-        </div>
-      )}
+      <Seg cur={tab} onPick={setTab} tabs={[
+        {id:'book',label:'Sổ sách',icon:'ti-book'},
+        {id:'grow',label:'Tăng doanh số',icon:'ti-chart-line'},
+        {id:'promo',label:'Khuyến mãi',icon:'ti-gift'},
+        {id:'tour',label:'Giải đấu',icon:'ti-trophy'},
+      ]}/>
+      {tab==='book'&&<Ledger sessions={s.sessions} tours={s.tours} signups={s.signups}/>}
+      {tab==='grow'&&<GrowthView sessions={s.sessions} customers={s.customers} growth={s.growth} setGrowth={s.setGrowth} flash={s.flash}/>}
+      {tab==='promo'&&<PromoMgr promos={s.promos} setPromos={s.setPromos} flash={s.flash}/>}
+      {tab==='tour'&&<TourMgr tours={s.tours} setTours={s.setTours} signups={s.signups} flash={s.flash}/>}
+    </div>
+  );
+}
+function OpsView({s}){
+  const [tab,setTab]=useState('tasks');
+  const late=(s.lockers||[]).filter(l=>lockerBusy(l)&&l.dueDate&&daysLeft(l.dueDate)<0).length;
+  const dueMaint=(s.maint||[]).filter(m=>m.due&&daysLeft(m.due)<=0).length;
+  return (
+    <div>
+      <Seg cur={tab} onPick={setTab} tabs={[
+        {id:'tasks',label:'Đầu việc',icon:'ti-checklist'},
+        {id:'locker',label:'Tủ gửi gậy',icon:'ti-lock',badge:late},
+        {id:'cue',label:'Gậy quán',icon:'ti-cricket'},
+        {id:'stock',label:'Kho',icon:'ti-box-seam'},
+        {id:'maint',label:'Bảo trì',icon:'ti-tools',badge:dueMaint},
+      ]}/>
+      {tab==='tasks'&&<TasksView s={s}/>}
+      {tab==='locker'&&<LockerBoard s={s}/>}
+      {tab==='cue'&&<CueStock cues={s.cues} setCues={s.setCues} tables={s.tables} me={s.me} isManager={s.isManager} flash={s.flash}/>}
+      {tab==='stock'&&<InventoryView s={s}/>}
+      {tab==='maint'&&<MaintView maint={s.maint} setMaint={s.setMaint} flash={s.flash}/>}
+    </div>
+  );
+}
+function HRView({s}){
+  const [tab,setTab]=useState('team');
+  return (
+    <div>
+      <Seg cur={tab} onPick={setTab} tabs={[
+        {id:'team',label:'Cả đội',icon:'ti-users'},
+        {id:'sched',label:'Phân ca',icon:'ti-calendar'},
+        {id:'pay',label:'Lỗi & lương',icon:'ti-cash'},
+        {id:'staff',label:'Nhân viên',icon:'ti-id-badge-2'},
+        {id:'train',label:'Đào tạo',icon:'ti-school'},
+        {id:'me',label:'Ca của tôi',icon:'ti-user'},
+      ]}/>
+      {tab==='team'&&<TeamAttend attend={s.attend} schedule={s.schedule} staff={s.staff}/>}
+      {tab==='sched'&&<ScheduleEditor schedule={s.schedule} setSchedule={s.setSchedule} staff={s.staff} attend={s.attend} flash={s.flash}/>}
+      {tab==='pay'&&<div>
+        <LogViolation violations={s.violations} setViolations={s.setViolations} penaltyRules={s.penaltyRules} staff={s.staff} me={s.me} flash={s.flash}/>
+        <PenaltyPayroll penaltyRules={s.penaltyRules} setPenaltyRules={s.setPenaltyRules} violations={s.violations} attend={s.attend} staff={s.staff} flash={s.flash}/>
+      </div>}
+      {tab==='staff'&&<StaffMgr staff={s.staff} setStaff={s.setStaff} flash={s.flash}/>}
+      {tab==='train'&&<TrainView s={s}/>}
+      {tab==='me'&&<div><MyShift s={s}/><MyViolations violations={s.violations} me={s.me}/></div>}
+    </div>
+  );
+}
+function SetupView({s}){
+  const [tab,setTab]=useState('menu');
+  return (
+    <div>
+      <Seg cur={tab} onPick={setTab} tabs={[
+        {id:'menu',label:'Thực đơn',icon:'ti-list'},
+        {id:'tables',label:'Bàn & giá',icon:'ti-layout-grid'},
+        {id:'qr',label:'QR bàn',icon:'ti-qrcode'},
+      ]}/>
+      <p className="hint" style={{marginBottom:10}}>Danh mục nền của quán — ít phải đổi, sửa ở đây là cả app theo.</p>
+      {tab==='menu'&&<MenuMgr menu={s.menu} setMenu={s.setMenu} flash={s.flash}/>}
+      {tab==='tables'&&<BanMgr tables={s.tables} setTables={s.setTables} endTasks={s.endTasks} setEndTasks={s.setEndTasks} flash={s.flash}/>}
+      {tab==='qr'&&<QRMgr tables={s.tables} cloud={s.cloud}/>}
     </div>
   );
 }
@@ -3476,16 +3549,27 @@ function InventoryView({s}){
 }
 
 /* ================= Gậy & tủ ================= */
-function CueView({s}){
-  const {lockers,setLockers,cues,setCues,customers,tables,me,isManager,flash}=s;
-  const [sec,setSec]=useState('locker'); // locker | cue
+function CueView({s}){ // nhân viên quầy / phục vụ: 2 mục trong 1 màn
+  const [sec,setSec]=useState('locker');
+  const late=(s.lockers||[]).filter(l=>lockerBusy(l)&&l.dueDate&&daysLeft(l.dueDate)<0).length;
+  return (
+    <div>
+      <Seg cur={sec} onPick={setSec} tabs={[
+        {id:'locker',label:'Tủ gửi gậy',icon:'ti-lock',badge:late},
+        {id:'cue',label:'Gậy của quán',icon:'ti-cricket'},
+      ]}/>
+      {sec==='locker'&&<LockerBoard s={s}/>}
+      {sec==='cue'&&<CueStock cues={s.cues} setCues={s.setCues} tables={s.tables} me={s.me} isManager={s.isManager} flash={s.flash}/>}
+    </div>
+  );
+}
+function LockerBoard({s}){
+  const {lockers,setLockers,customers,me,isManager,flash}=s;
   const [edit,setEdit]=useState(null);   // ô tủ đang mở
   const list=[...lockers].sort((a,b)=>(Number(a.no)||0)-(Number(b.no)||0));
   const busy=list.filter(lockerBusy);
   const late=busy.filter(l=>l.dueDate&&daysLeft(l.dueDate)<0);
   const soon=busy.filter(l=>l.dueDate&&daysLeft(l.dueDate)>=0&&daysLeft(l.dueDate)<=7);
-  const out=cues.filter(c=>c.outTable);
-  const bad=cues.filter(c=>c.cond!=='good');
   const addLocker=()=>{
     const no=list.reduce((a,l)=>Math.max(a,Number(l.no)||0),0)+1;
     setLockers(v=>[...v,{id:uid(),no,size:'Thường',fee:50000,custId:'',custName:'',phone:'',cue:'',startDate:'',dueDate:'',note:''}]);
@@ -3493,12 +3577,7 @@ function CueView({s}){
   };
   return (
     <div>
-      <div className="seg">
-        <button className={sec==='locker'?'on':''} onClick={()=>setSec('locker')}><i className="ti ti-lock"/>Tủ gửi gậy {late.length>0&&`(${late.length})`}</button>
-        <button className={sec==='cue'?'on':''} onClick={()=>setSec('cue')}><i className="ti ti-cricket"/>Gậy của quán</button>
-      </div>
-
-      {sec==='locker'&&<div>
+      <div>
         <div className="grid-stat">
           <div className="stat"><div className="ic g"><i className="ti ti-lock-open"/></div><div className="n">{list.length-busy.length}/{list.length}</div><div className="l">Ô tủ còn trống</div></div>
           <div className="stat"><div className="ic a"><i className="ti ti-clock-exclamation"/></div><div className="n">{soon.length}</div><div className="l">Sắp hết hạn</div></div>
@@ -3546,9 +3625,7 @@ function CueView({s}){
             <p className="hint" style={{marginTop:10}}>Viền xanh = đang thuê · vàng = sắp hết hạn · đỏ = quá hạn. Ô trống thì bấm để cho khách thuê.</p>
           </div>
         </div>
-      </div>}
-
-      {sec==='cue'&&<CueStock cues={cues} setCues={setCues} tables={tables} me={me} isManager={isManager} flash={flash}/>}
+      </div>
 
       {edit&&<LockerModal lk={edit} lockers={lockers} setLockers={setLockers} customers={customers} isManager={isManager}
         onClose={()=>setEdit(null)} flash={flash}/>}

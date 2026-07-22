@@ -10,13 +10,28 @@ tích điểm khách, khuyến mãi, giải đấu — và app riêng cho **khá
 
 | Vai | Màn mặc định | Chức năng chính |
 |-----|--------------|-----------------|
-| **Quản lý** | Báo món | Toàn quyền + hub *Quản lý*: khuyến mãi, giải đấu, gửi tin, QR bàn, lỗi & lương, bàn, nhân viên, thực đơn |
+| **Quản lý** | Doanh thu | 6 mục gom theo việc quản lý cái gì — xem bảng dưới |
 | **Nhân viên phục vụ** | Báo món | Báo món, đầu việc, gậy & tủ, đào tạo, chấm công |
 | **Nhân viên quầy** | Quầy | Order các bàn, gọi món ngoài, gậy & tủ, kiểm kho |
 | **Tổ chức giải** | Giải đấu | Lịch giải, đăng ký, kết quả, khách, chấm công |
 | **Khách hàng** | Đặt món | Đặt món, đặt bàn, **Highlight** (xin cắt clip & xem video), **hạng & quà theo giờ chơi**, thông báo, góp ý |
 
 Đăng nhập giả lập (chọn tên). Khách đăng nhập bằng **SĐT**, máy tự nhớ.
+
+## Menu của Quản lý
+
+Gom theo **quản lý cái gì**, mỗi mục chỉ nằm ở đúng một chỗ, sâu tối đa 1 lớp tab:
+
+| Mục | Tab con |
+|-----|---------|
+| **Bàn** | Sơ đồ bàn — mở / chốt bill (badge: số bàn đang chơi) |
+| **Doanh thu** | Sổ sách · Tăng doanh số · Khuyến mãi · Giải đấu |
+| **Khách** | Danh sách (lọc VIP) · Hạng & quà · Góp ý · Gửi tin · Highlight |
+| **Nhân sự** | Cả đội · Phân ca · Lỗi & lương · Nhân viên · Đào tạo · Ca của tôi |
+| **Vận hành** | Đầu việc · Tủ gửi gậy · Gậy quán · Kho · Bảo trì |
+| **Cài đặt** | Thực đơn · Bàn & giá · QR bàn |
+
+Badge đỏ: Khách = góp ý mới + yêu cầu cắt clip chờ; Vận hành = tủ quá hạn, bảo trì tới hạn.
 
 ## Chạy
 
