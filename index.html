@@ -328,13 +328,25 @@ const CLOUD_ARRAYS={orders:'ps_orders',feedback:'ps_feedback',customers:'ps_cust
   lockers:'ps_lockers',cues:'ps_cues'};
 // Bảng mới thêm sau: quán chưa chạy lại supabase-schema.sql thì bỏ qua, phần còn lại vẫn đồng bộ
 const CLOUD_OPTIONAL={highlights:1,lockers:1,cues:1};
+// Khoá quán: dữ liệu khách (tên, số điện thoại, lịch sử) chỉ mở cho máy biết khoá.
+// Khoá nằm ở KHOA-QUAN.txt trên máy chủ quán, KHÔNG nằm trong file này và không lên GitHub.
+// Nhập một lần trên mỗi máy, trình duyệt nhớ. Không có khoá → app vẫn chạy bằng dữ liệu máy này.
+const CLUB_KEY_STORE='ps_club_key';
 const Cloud={
   sb:null,enabled:false,status:'off',onStatus:null,
+  clubKey(){ try{return localStorage.getItem(CLUB_KEY_STORE)||'';}catch(e){return '';} },
+  hasKey(){ return !!this.clubKey(); },
+  saveKey(k){
+    try{localStorage.setItem(CLUB_KEY_STORE,(k||'').trim());}catch(e){}
+    this.sb=null;this.enabled=false; // dựng lại kết nối với khoá mới
+  },
   init(){
     if(this.sb)return true;
     try{
       if(!window.supabase||!window.supabase.createClient)return false;
-      this.sb=window.supabase.createClient(SB_URL,SB_KEY);
+      const k=this.clubKey();
+      if(!k)return false;
+      this.sb=window.supabase.createClient(SB_URL,SB_KEY,{global:{headers:{'x-club-key':k}}});
       this.enabled=true;return true;
     }catch(e){this.enabled=false;return false;}
   },
@@ -703,6 +715,34 @@ function CloudDot({status}){
 }
 
 /* ================= App ================= */
+/* Thanh nhập khoá quán: chỉ hiện khi máy này chưa có khoá.
+   Không có khoá thì app vẫn chạy bằng dữ liệu của máy, chỉ là không đồng bộ với máy khác. */
+function ClubKeyBar({cloud}){
+  const [k,setK]=useState('');
+  const [an,setAn]=useState(cloud!=='nokey');
+  useEffect(()=>{setAn(cloud!=='nokey');},[cloud]);
+  if(an)return null;
+  const luu=()=>{ if(!k.trim())return; Cloud.saveKey(k); location.reload(); };
+  return (
+    <div style={{position:'fixed',left:0,right:0,bottom:0,zIndex:9999,background:'var(--card,#fff)',
+      borderTop:'3px solid var(--red,#e5484d)',padding:'12px 16px',boxShadow:'0 -6px 24px rgba(0,0,0,.18)'}}>
+      <div style={{maxWidth:640,margin:'0 auto'}}>
+        <b style={{fontSize:14}}>🔑 Máy này chưa có khoá quán</b>
+        <p className="hint" style={{margin:'4px 0 8px'}}>
+          Chưa nhập khoá thì máy chạy riêng, không thấy order và khách của máy khác.
+          Khoá nằm ở file <code>KHOA-QUAN.txt</code> trên máy chủ quán.
+        </p>
+        <div style={{display:'flex',gap:8}}>
+          <input className="inp" style={{flex:1}} type="password" placeholder="Dán khoá quán vào đây"
+            value={k} onChange={e=>setK(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')luu();}}/>
+          <button className="btn pri" onClick={luu}>Lưu</button>
+          <button className="btn" onClick={()=>setAn(true)}>Để sau</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function App(){
   const [staff,setStaff]=usePersist('ps.staff',SEED_STAFF);
   const [tables,setTables]=usePersist('ps.tables',SEED_TABLES);
@@ -811,9 +851,9 @@ function App(){
 
   // Kết nối cloud: tải dữ liệu chung + lắng nghe realtime. Lỗi/chưa chạy SQL → chạy cục bộ.
   useEffect(()=>{
-    if(!Cloud.init()){setCloud('off');return;}
+    if(!Cloud.init()){setCloud(Cloud.hasKey()?'off':'nokey');return;}
     Cloud.onStatus=setCloud;
-    let subs=[],alive=true;
+    let subs=[],alive=true,poll=null;
     (async()=>{
       Cloud.setStatus('syncing');
       try{
@@ -867,9 +907,37 @@ function App(){
           if(row.k==='menu')setMenu(normMenu(row.v)); else if(row.k==='tables')setTables(row.v);
           else if(row.k==='promos')setPromos(row.v); else if(row.k==='tiers')setTiers(row.v);
         }).subscribe());
+        // Từ khi bật khoá quán, kênh realtime không mang được khoá nên bị đóng.
+        // Đồng bộ định kỳ thay thế: cứ 20 giây tải lại phần dùng chung giữa các máy.
+        poll=setInterval(async()=>{
+          if(document.hidden)return;
+          try{
+            const n=await Cloud.bootstrap();
+            if(!alive)return;
+            if(n.orders)setOrders(n.orders);
+            if(n.feedback)setFeedback(n.feedback);
+            if(n.broadcasts)setBroadcasts(n.broadcasts);
+            if(n.alerts)setAlerts(n.alerts);
+            if(n.signups)setSignups(n.signups);
+            if(n.results)setResults(n.results);
+            if(n.bookings)setBookings(n.bookings);
+            if(n.sessions)setSessions(n.sessions);
+            if(n.customers)setCustomers(n.customers.map(normCust));
+            if(n.tours)setTours(n.tours);
+            if(n.maint)setMaint(n.maint);
+            if(n.growth)setGrowth(n.growth);
+            if(n.highlights)setHighlights(n.highlights);
+            if(n.lockers)setLockers(n.lockers);
+            if(n.cues)setCues(n.cues);
+            if(n.kv.menu)setMenu(normMenu(n.kv.menu));
+            if(n.kv.tables)setTables(n.kv.tables);
+            if(n.kv.promos)setPromos(n.kv.promos);
+            if(n.kv.tiers)setTiers(n.kv.tiers);
+          }catch(e){}
+        },20000);
       }catch(e){ Cloud.enabled=false; Cloud.setStatus('error'); }
     })();
-    return ()=>{alive=false;subs.forEach(s=>{try{Cloud.sb.removeChannel(s);}catch(e){}});};
+    return ()=>{alive=false;if(poll)clearInterval(poll);subs.forEach(s=>{try{Cloud.sb.removeChannel(s);}catch(e){}});};
   },[]);
 
   const flash=(m)=>{setToast(m);setTimeout(()=>setToast(null),2200);};
@@ -964,6 +1032,7 @@ function App(){
 
   return (
     <div className="app">
+      <ClubKeyBar cloud={cloud}/>
       {/* Sidebar desktop */}
       <aside className="side">
         <div className="brand"><div className="lic">🎱</div><div><b>PoolStaff</b><br/><small>Trợ lý quán bi-a</small></div></div>
