@@ -2,7 +2,7 @@
 //  - App (same-origin): NETWORK-FIRST → luôn lấy bản mới khi có mạng, offline thì dùng cache.
 //  - CDN/fonts (cross-origin): cache-first để chạy được offline.
 //  - Supabase (API/realtime/storage): KHÔNG đụng — luôn đi thẳng mạng.
-const CACHE = 'poolstaff-v1';
+const CACHE = 'poolstaff-v2';
 const SHELL = ['./', './index.html', './manifest.json', './icon.svg'];
 
 self.addEventListener('install', e => {
