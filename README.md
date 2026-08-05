@@ -3,8 +3,21 @@
 Web app hỗ trợ vận hành quán bi-a: nhân viên báo món về quầy, đầu việc theo ca, đào tạo, chấm công,
 tích điểm khách, khuyến mãi, giải đấu — và app riêng cho **khách hàng** tự đặt món & góp ý.
 
-> ⚠️ **Bản demo.** Đang dùng RLS mở + khoá publishable công khai → **không nhập dữ liệu khách thật**
-> (tên/SĐT/ảnh). Muốn dùng thật cần siết bảo mật (Supabase Auth + RLS theo người dùng).
+## Bảo mật — chạy 2 file SQL theo đúng thứ tự
+
+1. `supabase-schema.sql` — tạo bảng (chỉ tạo bảng, **không** cấp quyền)
+2. `supabase-auth-rls.sql` — bật đăng nhập + khoá dữ liệu
+
+Sau khi chạy: nhân viên phải **đăng nhập bằng khoá quán** mới đọc/ghi được; khách chỉ
+**gửi** đơn/góp ý/đặt bàn, không đọc được danh sách khách, không xoá được gì.
+
+- Tài khoản quán: tạo 1 lần ở **Supabase → Authentication → Users** —
+  email `quan@poolstaff.local`, password = **khoá quán**, tick *Auto Confirm User*.
+- Khoá quán để ở `KHOA-QUAN.txt` trên máy quán (không lên GitHub). Mỗi máy nhân viên nhập 1 lần.
+- Nhân viên nghỉ việc / mất máy → đổi password trên Supabase rồi báo khoá mới cho các máy còn lại.
+
+> ⚠️ Chưa chạy `supabase-auth-rls.sql` thì **ai có link cũng đọc/xoá được dữ liệu khách** —
+> đừng nhập tên/SĐT/ảnh khách thật cho tới khi chạy xong.
 
 ## Vai trò
 

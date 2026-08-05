@@ -2,12 +2,14 @@
 
 App tĩnh một-file: toàn bộ UI + logic + CSS trong `index.html` (~308KB, ~4.575 dòng — **RẤT LỚN**), React 18 + Babel Standalone + Supabase 2 + QRCode + Tabler icons qua CDN, KHÔNG build step. Khác các app khác trong hệ sinh thái: đây là app **B2B đa người dùng thật** (nhiều vai + app khách), xử lý **dữ liệu khách hàng thật** (tên, SĐT, đơn, booking).
 
-## 🔴 BẢO MẬT — đọc trước khi cho quán dùng thật
-- **RLS đang MỞ TOÀN BỘ.** `supabase-schema.sql` đặt `for all using (true) with check (true)` cho **cả 16 bảng `ps_*`**. Anon key + URL Supabase đều công khai trong `index.html` → **bất kỳ ai cũng đọc/ghi/xoá được toàn bộ** đơn hàng, khách hàng, SĐT, booking, doanh số. "Khoá quán" hiện chỉ chặn ở **tầng app** (JS), KHÔNG ràng buộc ở DB nên vô hiệu với người gọi thẳng API.
-- Cảnh báo "demo · đừng nhập data khách thật" trong README **đang đúng** — giữ nguyên cho tới khi siết RLS.
-- **Hướng vá đề xuất** (cần Supabase thật + test, chưa làm sẵn): dùng "khoá quán" làm mật khẩu một tài khoản Supabase Auth dùng chung cho nhân viên → RLS bảng nội bộ (`ps_customers`, `ps_sessions`, `ps_kv`, `ps_growth`, `ps_maint`, `ps_lockers`, `ps_cues`, `ps_broadcasts`) yêu cầu `auth.role() = 'authenticated'`; các bảng khách tự thao tác (`ps_orders` insert, `ps_feedback`, `ps_signups`, `ps_bookings`, `ps_alerts`) cho anon `insert` nhưng KHÔNG cho `select/update/delete`. Test trên bản sao trước khi áp production.
-- **Dùng chung một project Supabase** với các app khác (`ltmlueqkajqmduoqghdf`) — chỉ ảnh hưởng bảng `ps_*`, nhưng là lý do phải siết RLS đồng đều.
-- Trước khi public/đưa vào dùng: chạy skill `supabase-security-audit`.
+## 🔴 BẢO MẬT — đọc trước khi sửa SQL
+- **Đã siết (2026-08-05):** quyền truy cập nằm ở **`supabase-auth-rls.sql`**, KHÔNG còn trong `supabase-schema.sql`.
+  - Nhân viên: `Cloud.signIn()` đăng nhập Supabase Auth `quan@poolstaff.local`, **mật khẩu = khoá quán** (`localStorage.ps_club_key`, gốc ở `KHOA-QUAN.txt`, gitignored) → policy `authenticated` cho toàn quyền.
+  - Khách (anon): chỉ `INSERT` vào `ps_orders/feedback/bookings/signups/alerts/highlights`; chỉ `SELECT` `ps_kv/ps_tours/ps_broadcasts`. **Không** đọc `ps_customers`, không xoá gì. Hồ sơ khách lấy qua RPC `ps_cust_login(phone,name)` / `ps_cust_data(cust_id)` (SECURITY DEFINER, chỉ trả phần của chính khách).
+- **⚠️ BẪY ĐÃ DÍNH 1 LẦN:** `supabase-schema.sql` trước đây tạo `for all using(true) with check(true)` cho mọi bảng → chạy lại là **mở toang lại toàn bộ**, ghi đè policy chặt. Đã bỏ phần cấp quyền khỏi file đó; nay nó chỉ tạo bảng + bật RLS. **Thứ tự bắt buộc: schema.sql → auth-rls.sql.** Đừng bao giờ thêm policy `using(true)` cho `anon` vào schema.
+- Sau mỗi lần đổi SQL, kiểm chứng bằng cách **đóng vai người lạ** (client anon, không đăng nhập): phải bị chặn đọc `ps_customers`/`ps_sessions` và chặn `delete`.
+- **Dùng chung project Supabase** với app khác (`ltmlueqkajqmduoqghdf`) — chỉ đụng bảng `ps_*`.
+- Trước khi cho quán khác dùng: chạy skill `supabase-security-audit`.
 
 ## Quy tắc làm việc với file này
 - **KHÔNG đọc cả `index.html` (~308KB, ~4.575 dòng)** — grep định vị rồi Read cửa sổ nhỏ (skill `bigfile-nav`).
