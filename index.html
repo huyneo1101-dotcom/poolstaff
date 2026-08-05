@@ -345,6 +345,8 @@ const Cloud={
     try{localStorage.setItem(CLUB_KEY_STORE,(k||'').trim());}catch(e){}
     this.sb=null;this.enabled=false; // dựng lại kết nối với khoá mới
   },
+  // Tài khoản dùng chung của quán: khoá quán chính là mật khẩu (tạo ở Supabase → Authentication)
+  staffEmail:'quan@poolstaff.local',
   init(){
     if(this.sb)return true;
     try{
@@ -354,6 +356,33 @@ const Cloud={
       this.sb=window.supabase.createClient(SB_URL,SB_KEY,{global:{headers:{'x-club-key':k}}});
       this.enabled=true;return true;
     }catch(e){this.enabled=false;return false;}
+  },
+  // Máy nhân viên: đăng nhập bằng khoá quán để RLS mở quyền đọc/ghi dữ liệu nội bộ
+  async signIn(){
+    if(!this.sb)return false;
+    try{
+      const {data}=await this.sb.auth.getSession();
+      if(data&&data.session)return true;
+      const {error}=await this.sb.auth.signInWithPassword({email:this.staffEmail,password:this.clubKey()});
+      if(error){ this.authError=error.message; return false; }
+      return true;
+    }catch(e){ this.authError=String(e&&e.message||e); return false; }
+  },
+  // Máy khách: không đăng nhập, chỉ gọi 2 hàm riêng (không đọc được bảng khách)
+  guest(){
+    if(this._g)return this._g;
+    try{ this._g=window.supabase.createClient(SB_URL,SB_KEY); }catch(e){ this._g=null; }
+    return this._g;
+  },
+  async custLogin(phone,name){
+    const sb=this.sb||this.guest(); if(!sb)return null;
+    const {data,error}=await sb.rpc('ps_cust_login',{p_phone:phone,p_name:name||null});
+    if(error)throw error; return data;
+  },
+  async custData(custId){
+    const sb=this.sb||this.guest(); if(!sb)return null;
+    const {data,error}=await sb.rpc('ps_cust_data',{p_cust_id:custId});
+    if(error)throw error; return data;
   },
   setStatus(s){this.status=s;if(this.onStatus)this.onStatus(s);},
   async bootstrap(){
@@ -368,8 +397,17 @@ const Cloud={
     (kv||[]).forEach(r=>{out.kv[r.k]=r.v;});
     return out;
   },
+  // Ghi hỏng (RLS chặn / mất mạng) → báo lên icon ☁️ thay vì im lặng nuốt lỗi
+  noteWriteError(e){
+    const m=(e&&(e.message||e.msg))||'';
+    this.writeError=/row-level security|permission|denied|JWT/i.test(m)
+      ? 'Cloud từ chối ghi. Máy này chưa đăng nhập bằng khoá quán, hoặc chưa chạy supabase-auth-rls.sql.'
+      : ('Không lưu được lên cloud: '+(m||'lỗi không rõ'));
+    this.setStatus('error');
+  },
   async upsertRow(table,obj){
-    try{ await this.sb.from(table).upsert({id:obj.id,data:obj,updated_at:new Date().toISOString()}); }catch(e){}
+    try{ const {error}=await this.sb.from(table).upsert({id:obj.id,data:obj,updated_at:new Date().toISOString()});
+      if(error)this.noteWriteError(error); }catch(e){ this.noteWriteError(e); }
   },
   async deleteRow(table,id){
     try{ await this.sb.from(table).delete().eq('id',id); }catch(e){}
@@ -716,7 +754,18 @@ const CLOUD_UI={
 };
 function CloudDot({status}){
   const c=CLOUD_UI[status]||CLOUD_UI.off;
-  return <span className="iconbtn" title={c.title} style={{cursor:'default'}}><i className={'ti '+c.icon} style={{color:c.color}}/></span>;
+  // Lỗi thì bấm vào để xem vì sao (sai khoá quán / chưa chạy SQL / RLS chặn ghi)
+  const why=()=>{
+    if(status!=='error')return;
+    const a=Cloud.authError,w=Cloud.writeError;
+    alert('⚠️ Chưa đồng bộ được lên cloud\n\n'+
+      (a?('• Đăng nhập quán thất bại: '+a+'\n  → Kiểm tra lại KHOÁ QUÁN, và tài khoản quan@poolstaff.local đã tạo trong Supabase chưa.\n'):'')+
+      (w?('• Ghi dữ liệu bị từ chối: '+w+'\n'):'')+
+      (!a&&!w?'• Chưa chạy supabase-schema.sql, hoặc mất mạng.\n':'')+
+      '\nApp vẫn chạy bình thường bằng dữ liệu trên máy này.');
+  };
+  return <span className="iconbtn" title={c.title} onClick={why} style={{cursor:status==='error'?'pointer':'default'}}>
+    <i className={'ti '+c.icon} style={{color:c.color}}/></span>;
 }
 
 /* ================= App ================= */
@@ -862,6 +911,7 @@ function App(){
     (async()=>{
       Cloud.setStatus('syncing');
       try{
+        await Cloud.signIn(); // đăng nhập tài khoản quán (khoá quán = mật khẩu) để RLS mở quyền
         const d=await Cloud.bootstrap();
         if(!alive)return;
         const L=latest.current;
@@ -1101,10 +1151,22 @@ function Login({staff,onPick,customers,setCustomers,onCust}){
   const [mode,setMode]=useState('pick'); // pick | cust
   const [phone,setPhone]=useState('');
   const [name,setName]=useState('');
-  const custLogin=()=>{
+  const [busy,setBusy]=useState(false);
+  const custLogin=async()=>{
     const ph=phone.trim();
     if(ph.length<8){alert('Nhập số điện thoại hợp lệ');return;}
-    const found=customers.find(c=>c.phone&&c.phone.replace(/\s/g,'')===ph.replace(/\s/g,''));
+    const same=x=>(x||'').replace(/\s/g,'')===ph.replace(/\s/g,'');
+    setBusy(true);
+    try{
+      // Ưu tiên hỏi cloud (máy khách không đọc được bảng khách, phải qua hàm riêng)
+      const rec=await Cloud.custLogin(ph,name.trim());
+      if(rec&&rec.id){
+        setCustomers(v=>v.some(c=>c.id===rec.id)?v.map(c=>c.id===rec.id?{...c,...rec}:c):[rec,...v]);
+        onCust('c:'+rec.id);return;
+      }
+    }catch(e){ /* chưa chạy SQL mới / mất mạng → dùng dữ liệu máy này */ }
+    finally{ setBusy(false); }
+    const found=customers.find(c=>same(c.phone));
     if(found){onCust('c:'+found.id);return;}
     const nm=name.trim()||('Khách '+ph.slice(-3));
     const nc={id:uid(),name:nm,phone:ph,points:0,hours:0,visits:0,vip:false,games:[],photo:'',note:'',rewards:[],history:[]};
@@ -1137,7 +1199,7 @@ function Login({staff,onPick,customers,setCustomers,onCust}){
             <p className="hint" style={{marginBottom:12}}>Nhập số điện thoại để vào đặt món & xem điểm. Máy sẽ tự nhớ cho lần sau.</p>
             <label className="fld"><span>Số điện thoại *</span><input className="inp" autoFocus value={phone} onChange={e=>setPhone(e.target.value)} placeholder="09xx xxx xxx" inputMode="tel" onKeyDown={e=>e.key==='Enter'&&custLogin()}/></label>
             <label className="fld"><span>Tên (nếu là khách mới)</span><input className="inp" value={name} onChange={e=>setName(e.target.value)} placeholder="Tên của bạn"/></label>
-            <button className="btn block wide" onClick={custLogin}><i className="ti ti-login"/>Vào quán</button>
+            <button className="btn block wide" onClick={custLogin} disabled={busy}><i className={'ti '+(busy?'ti-loader-2':'ti-login')}/>{busy?'Đang vào…':'Vào quán'}</button>
             <button className="btn ghost block" style={{marginTop:8}} onClick={()=>setMode('pick')}><i className="ti ti-arrow-left"/>Tôi là nhân viên</button>
           </div>
         )}
