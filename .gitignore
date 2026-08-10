@@ -1,3 +1,6 @@
 .preview-server.js
 .preview-*.js
 KHOA-QUAN.txt
+
+# Bản lưu trước khi chuyển sang dịch sẵn mã (dungapp/dung.py)
+*.truoc-khi-dich.bak
