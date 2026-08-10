@@ -66,57 +66,23 @@ create table if not exists ps_cues (
   id text primary key, data jsonb, updated_at timestamptz default now()
 );
 
--- 2) RLS + POLICY (prototype: cho phép anon đọc/ghi) --------
-alter table ps_orders     enable row level security;
-alter table ps_feedback   enable row level security;
-alter table ps_customers  enable row level security;
-alter table ps_kv         enable row level security;
-alter table ps_broadcasts enable row level security;
-alter table ps_alerts     enable row level security;
-alter table ps_tours      enable row level security;
-alter table ps_signups    enable row level security;
-alter table ps_results    enable row level security;
-alter table ps_bookings   enable row level security;
-alter table ps_sessions   enable row level security;
-alter table ps_maint      enable row level security;
-alter table ps_growth     enable row level security;
-alter table ps_highlights enable row level security;
-alter table ps_lockers    enable row level security;
-alter table ps_cues       enable row level security;
+-- 2) RLS — BẬT KHOÁ CHO MỌI BẢNG ---------------------------
+--
+--  ⚠️ PHẦN CẤP QUYỀN ĐÃ CHUYỂN SANG FILE  supabase-auth-rls.sql
+--
+--  File này CHỈ tạo bảng. Trước đây nó mở quyền cho tất cả mọi người
+--  (ai có link cũng đọc/ghi/xoá được SĐT khách, doanh số) — đã bỏ.
+--
+--  👉 Chạy xong file này PHẢI chạy tiếp  supabase-auth-rls.sql
+--     để bật đăng nhập + khoá dữ liệu. Chưa chạy thì app không đọc/ghi được.
 
-drop policy if exists ps_orders_all     on ps_orders;
-drop policy if exists ps_feedback_all    on ps_feedback;
-drop policy if exists ps_customers_all   on ps_customers;
-drop policy if exists ps_kv_all          on ps_kv;
-drop policy if exists ps_broadcasts_all  on ps_broadcasts;
-drop policy if exists ps_alerts_all      on ps_alerts;
-drop policy if exists ps_tours_all       on ps_tours;
-drop policy if exists ps_signups_all     on ps_signups;
-drop policy if exists ps_results_all     on ps_results;
-drop policy if exists ps_bookings_all    on ps_bookings;
-drop policy if exists ps_sessions_all    on ps_sessions;
-drop policy if exists ps_maint_all       on ps_maint;
-drop policy if exists ps_growth_all      on ps_growth;
-drop policy if exists ps_highlights_all  on ps_highlights;
-drop policy if exists ps_lockers_all     on ps_lockers;
-drop policy if exists ps_cues_all        on ps_cues;
-
-create policy ps_orders_all     on ps_orders     for all using (true) with check (true);
-create policy ps_feedback_all   on ps_feedback   for all using (true) with check (true);
-create policy ps_customers_all  on ps_customers  for all using (true) with check (true);
-create policy ps_kv_all         on ps_kv         for all using (true) with check (true);
-create policy ps_broadcasts_all on ps_broadcasts for all using (true) with check (true);
-create policy ps_alerts_all     on ps_alerts     for all using (true) with check (true);
-create policy ps_tours_all      on ps_tours      for all using (true) with check (true);
-create policy ps_signups_all    on ps_signups    for all using (true) with check (true);
-create policy ps_results_all    on ps_results    for all using (true) with check (true);
-create policy ps_bookings_all   on ps_bookings   for all using (true) with check (true);
-create policy ps_sessions_all   on ps_sessions   for all using (true) with check (true);
-create policy ps_maint_all      on ps_maint      for all using (true) with check (true);
-create policy ps_growth_all     on ps_growth     for all using (true) with check (true);
-create policy ps_highlights_all on ps_highlights for all using (true) with check (true);
-create policy ps_lockers_all    on ps_lockers    for all using (true) with check (true);
-create policy ps_cues_all       on ps_cues       for all using (true) with check (true);
+do $$
+declare r record;
+begin
+  for r in select tablename from pg_tables where schemaname='public' and tablename like 'ps%' loop
+    execute format('alter table public.%I enable row level security', r.tablename);
+  end loop;
+end $$;
 
 -- 3) REALTIME — chỉ thêm bảng nào chưa có (chạy lại nhiều lần không lỗi) --
 do $$

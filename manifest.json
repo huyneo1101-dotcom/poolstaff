@@ -1,0 +1,14 @@
+{
+  "name": "PoolStaff · Trợ lý quán bi-a",
+  "short_name": "PoolStaff",
+  "description": "Trợ lý vận hành quán bi-a: báo món, đầu việc theo ca, chấm công, khách & giải đấu.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f766e",
+  "theme_color": "#0f766e",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
