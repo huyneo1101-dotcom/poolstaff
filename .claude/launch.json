@@ -4,8 +4,15 @@
     {
       "name": "poolstaff",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "8791", "--directory", "/Users/Huy/Claude/App/PoolStaff"],
-      "port": 8791
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8791",
+        "--directory",
+        "/Users/Huy/Claude/App/PoolStaff"
+      ],
+      "port": 8791,
+      "autoPort": true
     }
   ]
 }
