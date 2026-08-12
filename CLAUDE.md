@@ -52,4 +52,5 @@ App tĩnh một-file: toàn bộ UI + logic + CSS trong `index.html` (~308KB, ~4
 - **Chưa có CI/CD** (`.github/workflows` / `netlify.toml`) → deploy thủ công. Xem skill `deploy-static`.
 
 ## Skills dùng chung
-Repo hiện CHƯA cài `.claude/skills`. Cài: `/plugin marketplace add huyneo1101-dotcom/Claude_skills` → `/plugin install vibe-pwa-kit@huyneo-skills`. Ưu tiên ở đây: `supabase-security-audit`, `bigfile-nav`, `pwa-healthcheck`, `scaffold-vibe-pwa`, `deploy-static`.
+Repo hiện CHƯA cài `.claude/skills`. Cài: `/plugin marketplace add huyneo1101-dotcom/Claude_skills` → `/plugin install vibe-pwa-kit@huyneo-skills`.
+⚠ Repo `Claude_skills` đã chuyển RIÊNG TƯ 12/08/2026 — lệnh trên chỉ chạy được trên máy đã đăng nhập `gh`. Máy lạ sẽ trượt ở bước clone. Ưu tiên ở đây: `supabase-security-audit`, `bigfile-nav`, `pwa-healthcheck`, `scaffold-vibe-pwa`, `deploy-static`.
