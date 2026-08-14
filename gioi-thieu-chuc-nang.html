@@ -3,380 +3,689 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
-<meta name="theme-color" content="#0C211B"/>
+<meta name="theme-color" content="#061512"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E🎱%3C/text%3E%3C/svg%3E"/>
 <title>PoolStaff — Trợ lý quán bi-a</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🎱%3C/text%3E%3C/svg%3E"/>
 <style>
-  :root{
-    --nen:#EDF1EE; --the:#FFFFFF; --the2:#F5F8F5; --vien:#D3DDD7;
-    --chu:#10221C; --chu2:#4C6659; --chu3:#779184;
-    --xanh:#2F7A9E; --xanh-nen:#E2EEF4;
-    --vang:#A9740A; --vang-nen:#F6EBD4;
-    --do:#A8362B; --do-nen:#F7E3E0;
-    --luc:#1F6B52; --luc-nen:#DDEDE6;
-    --bong:0 1px 2px rgba(16,34,28,.06), 0 8px 24px -12px rgba(16,34,28,.18);
-    --r:14px;
-  }
-  @media (prefers-color-scheme: dark){
-    :root{
-      --nen:#0C211B; --the:#122C24; --the2:#173428; --vien:#26483B;
-      --chu:#E6EFE9; --chu2:#9DB6AA; --chu3:#71897E;
-      --xanh:#68B0D2; --xanh-nen:#153541;
-      --vang:#DFA93A; --vang-nen:#3A2E14;
-      --do:#DE7367; --do-nen:#3D211D;
-      --luc:#5CBF98; --luc-nen:#123326;
-      --bong:0 1px 2px rgba(0,0,0,.3), 0 10px 30px -14px rgba(0,0,0,.6);
-    }
-  }
-  :root[data-theme="dark"]{
-    --nen:#0C211B; --the:#122C24; --the2:#173428; --vien:#26483B;
-    --chu:#E6EFE9; --chu2:#9DB6AA; --chu3:#71897E;
-    --xanh:#68B0D2; --xanh-nen:#153541;
-    --vang:#DFA93A; --vang-nen:#3A2E14;
-    --do:#DE7367; --do-nen:#3D211D;
-    --luc:#5CBF98; --luc-nen:#123326;
-    --bong:0 1px 2px rgba(0,0,0,.3), 0 10px 30px -14px rgba(0,0,0,.6);
-  }
-  :root[data-theme="light"]{
-    --nen:#EDF1EE; --the:#FFFFFF; --the2:#F5F8F5; --vien:#D3DDD7;
-    --chu:#10221C; --chu2:#4C6659; --chu3:#779184;
-    --xanh:#2F7A9E; --xanh-nen:#E2EEF4;
-    --vang:#A9740A; --vang-nen:#F6EBD4;
-    --do:#A8362B; --do-nen:#F7E3E0;
-    --luc:#1F6B52; --luc-nen:#DDEDE6;
-    --bong:0 1px 2px rgba(16,34,28,.06), 0 8px 24px -12px rgba(16,34,28,.18);
-  }
+/* ============================================================
+   PoolStaff — trang giới thiệu
+   Thế giới hình ảnh: mặt nỉ quán bi-a dưới đèn chụp, ban đêm.
+   Cố ý giữ MỘT tông tối cho cả hai chế độ xem: đây là không gian
+   của quán lúc đông khách, không phải tài liệu văn phòng.
+   ============================================================ */
+:root{
+  --ni:#0A211C;          /* mặt nỉ */
+  --ni-sau:#061512;      /* gầm bàn */
+  --go:#3B2A1E;          /* băng gỗ */
+  --the:#102C25;
+  --the-cao:#15382F;
+  --vien:rgba(233,180,76,.14);
+  --vien-manh:rgba(255,255,255,.07);
+  --chu:#ECF2EE;
+  --chu2:#9FB6AC;
+  --chu3:#6F8880;
+  --den:#E9B44C;         /* ánh đèn chụp */
+  --den-mo:rgba(233,180,76,.10);
+  --bi1:#F2C14E; --bi2:#2E6FB7; --bi3:#C8372D; --bi4:#6B4C9A;
+  --bi6:#1F7A4D; --bi8:#14100E;
+  --teal:#14B8A6;        /* màu app thật */
+  --teal-sau:#0F766E;
+  --serif:Georgia,"Noto Serif","Times New Roman",serif;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,"Roboto Mono",monospace;
+}
+*,*::before,*::after{box-sizing:border-box}
+body{
+  margin:0; background:var(--ni-sau); color:var(--chu);
+  font-family:var(--sans); font-size:16px; line-height:1.62;
+  -webkit-font-smoothing:antialiased; -webkit-text-size-adjust:100%;
+  overflow-x:hidden;
+}
+.bao{max-width:940px; margin:0 auto; padding:0 20px}
+@media(max-width:560px){ .bao{padding:0 16px} }
 
-  *{box-sizing:border-box}
-  body{
-    margin:0; background:var(--nen); color:var(--chu);
-    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-    font-size:16px; line-height:1.6;
-    -webkit-text-size-adjust:100%;
-  }
-  .khung{max-width:760px; margin:0 auto; padding:0 18px 72px}
+/* ---------- bi ---------- */
+.bi{
+  width:var(--d,42px); height:var(--d,42px); border-radius:50%; position:relative;
+  flex:none; display:grid; place-items:center;
+  background:
+    radial-gradient(circle at 33% 26%, rgba(255,255,255,.55) 0 5%, rgba(255,255,255,0) 42%),
+    radial-gradient(circle at 62% 74%, rgba(0,0,0,.55) 0 18%, rgba(0,0,0,0) 62%),
+    var(--c,#F2C14E);
+  box-shadow:inset -3px -5px 9px rgba(0,0,0,.45), 0 6px 14px rgba(0,0,0,.5);
+}
+.bi::after{
+  content:attr(data-n); width:44%; height:44%; border-radius:50%;
+  background:#FBFBF7; color:#171310;
+  font:700 calc(var(--d,42px)*.32)/1 var(--mono);
+  display:grid; place-items:center; letter-spacing:-.02em;
+}
+.bi.soc{
+  background:
+    radial-gradient(circle at 33% 26%, rgba(255,255,255,.5) 0 5%, rgba(255,255,255,0) 42%),
+    radial-gradient(circle at 62% 74%, rgba(0,0,0,.5) 0 18%, rgba(0,0,0,0) 62%),
+    linear-gradient(180deg,#FBFBF7 0 26%, var(--c) 26% 74%, #FBFBF7 74% 100%);
+}
 
-  /* ---------- Đầu trang ---------- */
-  .dau{
-    padding:44px 0 32px; display:flex; flex-direction:column; gap:18px;
-  }
-  .nhan{
-    display:inline-flex; align-items:center; gap:8px; align-self:flex-start;
-    font-size:12px; font-weight:700; letter-spacing:.11em; text-transform:uppercase;
-    color:var(--luc); background:var(--luc-nen); border-radius:999px; padding:6px 13px;
-  }
-  h1{
-    margin:0; font-size:clamp(34px,8vw,52px); line-height:1.05; font-weight:800;
-    letter-spacing:-.03em; text-wrap:balance;
-  }
-  h1 .cham{color:var(--xanh)}
-  .dat{
-    margin:0; font-size:clamp(17px,4.2vw,20px); line-height:1.5; color:var(--chu2);
-    max-width:60ch;
-  }
-  .so-hang{
-    display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:6px;
-  }
-  .so{
-    background:var(--the); border:1px solid var(--vien); border-radius:var(--r);
-    padding:14px 12px; box-shadow:var(--bong);
-  }
-  .so b{
-    display:block; font-size:26px; font-weight:800; letter-spacing:-.02em;
-    font-variant-numeric:tabular-nums; line-height:1.1;
-  }
-  .so span{display:block; font-size:12.5px; color:var(--chu3); margin-top:3px; line-height:1.35}
+/* ---------- đầu trang ---------- */
+.hero{
+  position:relative; overflow:hidden;
+  background:
+    radial-gradient(120% 78% at 50% -14%, rgba(233,180,76,.20) 0 22%, rgba(233,180,76,.05) 48%, rgba(0,0,0,0) 72%),
+    linear-gradient(180deg, var(--ni) 0%, #08201A 62%, var(--ni-sau) 100%);
+  border-bottom:1px solid var(--vien);
+}
+.hero::before{ /* chụp đèn treo */
+  content:""; position:absolute; top:-118px; left:50%; transform:translateX(-50%);
+  width:230px; height:230px; border-radius:50%;
+  background:radial-gradient(circle, rgba(233,180,76,.55) 0 18%, rgba(233,180,76,.12) 42%, rgba(233,180,76,0) 70%);
+  filter:blur(14px); pointer-events:none;
+}
+.hero-trong{position:relative; padding:70px 0 0; text-align:center}
+.eyebrow{
+  font-family:var(--mono); font-size:11.5px; letter-spacing:.26em; text-transform:uppercase;
+  color:var(--den); opacity:.95;
+}
+h1{
+  font-family:var(--serif); font-weight:400; margin:16px 0 0;
+  font-size:clamp(46px,12vw,88px); line-height:.94; letter-spacing:-.028em;
+  text-wrap:balance;
+  text-shadow:0 2px 30px rgba(233,180,76,.18);
+}
+h1 i{font-style:italic; color:var(--den)}
+.dat{
+  margin:20px auto 0; max-width:34em; color:var(--chu2);
+  font-size:clamp(16px,4.1vw,19px); line-height:1.6; text-wrap:pretty;
+}
+.rack{
+  display:flex; justify-content:center; gap:10px; margin:38px 0 0; flex-wrap:wrap;
+}
+.rack .bi{--d:38px}
+@media(max-width:420px){ .rack .bi{--d:32px} .rack{gap:8px} }
 
-  /* ---------- Mục ---------- */
-  section{padding-top:44px}
-  .tieu{display:flex; align-items:baseline; gap:12px; margin-bottom:6px}
-  h2{
-    margin:0; font-size:clamp(23px,5.4vw,30px); font-weight:800;
-    letter-spacing:-.022em; line-height:1.2;
-  }
-  .phu{margin:0 0 20px; color:var(--chu2); font-size:15.5px; max-width:62ch}
+/* thanh số liệu nằm trên băng gỗ */
+.bang-go{
+  margin-top:44px; background:linear-gradient(180deg,#4A3526,var(--go));
+  border-top:1px solid rgba(255,255,255,.09);
+  box-shadow:inset 0 10px 24px rgba(0,0,0,.42);
+}
+.bang-go .bao{
+  display:grid; grid-template-columns:repeat(3,1fr);
+  text-align:center; padding-top:20px; padding-bottom:20px;
+}
+.bang-go .o + .o{border-left:1px solid rgba(255,255,255,.12)}
+.bang-go b{
+  display:block; font-family:var(--serif); font-size:clamp(26px,7vw,38px);
+  line-height:1; font-variant-numeric:tabular-nums; color:#F5E4C8;
+}
+.bang-go span{
+  display:block; margin-top:7px; font-size:11.5px; letter-spacing:.13em;
+  text-transform:uppercase; color:rgba(245,228,200,.62); font-family:var(--mono);
+}
 
-  /* ---------- Thẻ vai ---------- */
-  .luoi{display:grid; gap:12px}
-  @media(min-width:620px){ .luoi.doi{grid-template-columns:1fr 1fr} }
-  .the{
-    background:var(--the); border:1px solid var(--vien); border-radius:var(--r);
-    padding:16px 16px 15px; box-shadow:var(--bong); display:flex; flex-direction:column; gap:9px;
-  }
-  .the-dau{display:flex; align-items:center; gap:11px}
-  .bieu{
-    width:38px; height:38px; flex:none; border-radius:11px;
-    display:grid; place-items:center; background:var(--xanh-nen); color:var(--xanh);
-  }
-  .bieu svg{width:21px; height:21px; stroke:currentColor; fill:none; stroke-width:1.8;
-    stroke-linecap:round; stroke-linejoin:round}
-  .bieu.v{background:var(--vang-nen); color:var(--vang)}
-  .bieu.d{background:var(--do-nen); color:var(--do)}
-  .bieu.l{background:var(--luc-nen); color:var(--luc)}
-  .ten{font-weight:700; font-size:17px; letter-spacing:-.01em; line-height:1.25}
-  .man{
-    font-size:12px; color:var(--chu3); margin-top:2px;
-  }
-  .man em{font-style:normal; color:var(--chu2); font-weight:600}
-  .the p{margin:0; font-size:14.5px; color:var(--chu2); line-height:1.55}
-  .chips{display:flex; flex-wrap:wrap; gap:6px}
-  .chip{
-    font-size:12.5px; font-weight:600; color:var(--chu2);
-    background:var(--the2); border:1px solid var(--vien);
-    border-radius:7px; padding:3px 8px; line-height:1.5;
-  }
+/* ---------- mục ---------- */
+section{padding:62px 0 0}
+.nhan-muc{
+  display:flex; align-items:center; gap:13px; margin-bottom:12px;
+}
+.nhan-muc::after{content:""; flex:1; height:1px; background:linear-gradient(90deg,var(--vien),transparent)}
+.nhan-muc span{
+  font-family:var(--mono); font-size:11px; letter-spacing:.24em;
+  text-transform:uppercase; color:var(--den);
+}
+h2{
+  font-family:var(--serif); font-weight:400; margin:0;
+  font-size:clamp(28px,6.6vw,42px); line-height:1.12; letter-spacing:-.022em;
+  text-wrap:balance;
+}
+.mo-ta{margin:14px 0 0; color:var(--chu2); max-width:60ch; font-size:16px}
 
-  /* ---------- Menu quản lý ---------- */
-  .nhom{
-    background:var(--the); border:1px solid var(--vien); border-radius:var(--r);
-    box-shadow:var(--bong); overflow:hidden;
-  }
-  .hang{
-    display:grid; grid-template-columns:132px 1fr; gap:14px;
-    padding:14px 16px; border-top:1px solid var(--vien); align-items:start;
-  }
-  .hang:first-child{border-top:0}
-  .hang-ten{display:flex; align-items:center; gap:9px; font-weight:700; font-size:15px}
-  .hang-ten svg{width:17px; height:17px; flex:none; stroke:var(--xanh); fill:none;
-    stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round}
-  @media(max-width:520px){
-    .hang{grid-template-columns:1fr; gap:9px}
-  }
+/* ---------- danh sách vai ---------- */
+.vai-ds{margin:34px 0 0; display:flex; flex-direction:column}
+.vai{
+  display:grid; grid-template-columns:auto 1fr; gap:18px; align-items:start;
+  padding:22px 0; border-top:1px solid var(--vien-manh);
+}
+.vai:first-child{border-top:0}
+.vai-ten{
+  font-family:var(--serif); font-size:22px; line-height:1.15; margin:0 0 3px;
+  letter-spacing:-.01em;
+}
+.vai-man{
+  font-family:var(--mono); font-size:11.5px; letter-spacing:.08em; color:var(--den);
+  text-transform:uppercase; margin-bottom:9px;
+}
+.vai p{margin:0 0 11px; color:var(--chu2); font-size:15.5px; max-width:56ch}
+.viec{display:flex; flex-wrap:wrap; gap:7px}
+.viec b{
+  font-weight:500; font-size:13px; color:var(--chu2);
+  background:var(--the); border:1px solid var(--vien-manh);
+  padding:4px 10px; border-radius:999px; line-height:1.5;
+}
+@media(max-width:520px){
+  .vai{grid-template-columns:auto 1fr; gap:14px}
+  .vai .bi{--d:34px}
+}
 
-  /* ---------- Bảng hạng ---------- */
-  .cuon{overflow-x:auto; border:1px solid var(--vien); border-radius:var(--r);
-    background:var(--the); box-shadow:var(--bong)}
-  table{border-collapse:collapse; width:100%; min-width:520px; font-size:14.5px}
-  th,td{padding:11px 14px; text-align:left; border-top:1px solid var(--vien); white-space:nowrap}
-  thead th{
-    border-top:0; background:var(--the2); font-size:12px; font-weight:700;
-    letter-spacing:.06em; text-transform:uppercase; color:var(--chu3);
-  }
-  td.n{font-variant-numeric:tabular-nums; text-align:right}
-  .hang-ten-vip{font-weight:700}
-  .vien-hang{display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:8px}
+/* ---------- mockup điện thoại ---------- */
+.may-hang{
+  margin:36px 0 0; display:flex; gap:26px; justify-content:center; flex-wrap:wrap;
+}
+.may-khoi{width:266px; max-width:100%}
+.may{
+  width:266px; height:576px; border-radius:38px; padding:9px; margin:0 auto;
+  background:linear-gradient(160deg,#2A3A36,#0D1A17);
+  box-shadow:0 2px 0 rgba(255,255,255,.08) inset, 0 26px 60px -18px rgba(0,0,0,.85);
+  position:relative;
+}
+.man{
+  width:100%; height:100%; border-radius:30px; overflow:hidden; position:relative;
+  background:#0C1513; display:flex; flex-direction:column;
+  font-size:11px; line-height:1.45;
+}
+.tai{
+  position:absolute; top:0; left:50%; transform:translateX(-50%);
+  width:88px; height:20px; background:#0D1A17; border-radius:0 0 12px 12px; z-index:5;
+}
+.man-dau{
+  padding:26px 13px 9px; display:flex; align-items:center; gap:8px;
+  background:#0C1513;
+}
+.man-dau h4{margin:0; font-size:14px; font-weight:700; letter-spacing:-.01em}
+.man-dau .sub{font-size:9.5px; color:#7E938D; margin-top:1px}
+.man-dau .cc{margin-left:auto; display:flex; gap:5px}
+.nutron{
+  width:25px; height:25px; border-radius:8px; background:#13201D;
+  border:1px solid #22332E; display:grid; place-items:center; position:relative;
+}
+.nutron svg{width:13px; height:13px; stroke:#8FA8A1; fill:none; stroke-width:1.9;
+  stroke-linecap:round; stroke-linejoin:round}
+.nutron .cham{
+  position:absolute; top:-4px; right:-4px; min-width:15px; height:15px; border-radius:8px;
+  background:#DC2626; color:#fff; font:700 9px/15px var(--sans); text-align:center;
+  border:2px solid #0C1513; padding:0 3px;
+}
+.man-noi{flex:1; overflow:hidden; padding:4px 13px 10px}
+.don{
+  background:#13201D; border:1px solid #22332E; border-radius:11px;
+  padding:9px 11px; margin-bottom:7px;
+}
+.don-dau{display:flex; align-items:center; gap:7px; margin-bottom:4px}
+.ban{
+  font-family:var(--mono); font-size:10px; font-weight:700; color:#0C1513;
+  background:var(--teal); border-radius:5px; padding:1px 6px;
+}
+.gio{margin-left:auto; font-size:9.5px; color:#6F8880; font-variant-numeric:tabular-nums}
+.mon{color:#C9DAD4; font-size:11px}
+.tien{
+  margin-top:5px; display:flex; align-items:baseline; gap:6px;
+  font-variant-numeric:tabular-nums;
+}
+.tien b{font-size:12.5px; color:#EAF0EC}
+.trang-thai{
+  margin-left:auto; font-size:9px; letter-spacing:.06em; text-transform:uppercase;
+  color:#F2C14E; background:rgba(242,193,78,.12); border-radius:4px; padding:2px 6px;
+}
+.trang-thai.xong{color:#4ADE80; background:rgba(74,222,128,.12)}
+.man-chan{
+  display:flex; border-top:1px solid #22332E; background:#0F1B18; padding:7px 4px 9px;
+}
+.man-chan div{
+  flex:1; text-align:center; font-size:8.5px; color:#6F8880; display:flex;
+  flex-direction:column; align-items:center; gap:3px;
+}
+.man-chan svg{width:17px; height:17px; stroke:currentColor; fill:none; stroke-width:1.9;
+  stroke-linecap:round; stroke-linejoin:round}
+.man-chan div.on{color:var(--teal)}
+.vach{
+  width:78px; height:3.5px; border-radius:2px; background:#2B3B36; margin:2px auto 0;
+}
+.may-chu{
+  text-align:center; margin-top:15px; font-size:13px; color:var(--chu2);
+}
+.may-chu b{display:block; color:var(--chu); font-size:14.5px; font-weight:600; margin-bottom:2px}
 
-  /* ---------- Khối nổi bật ---------- */
-  .noi{
-    border-left:3px solid var(--xanh); background:var(--the);
-    border-radius:0 var(--r) var(--r) 0; padding:15px 17px;
-    border-top:1px solid var(--vien); border-right:1px solid var(--vien);
-    border-bottom:1px solid var(--vien); box-shadow:var(--bong);
-  }
-  .noi.canh-bao{border-left-color:var(--do)}
-  .noi h3{margin:0 0 6px; font-size:16px; font-weight:700; letter-spacing:-.01em}
-  .noi p{margin:0; font-size:14.5px; color:var(--chu2); line-height:1.6}
-  .noi p + p{margin-top:8px}
+/* màn khách */
+.the-hang{
+  background:linear-gradient(150deg,rgba(242,193,78,.16),rgba(242,193,78,.03));
+  border:1px solid rgba(242,193,78,.3); border-radius:13px; padding:11px 12px; margin-bottom:9px;
+}
+.the-hang .h{display:flex; align-items:center; gap:7px}
+.the-hang .h b{font-size:14px}
+.the-hang .g{margin-left:auto; font-family:var(--mono); font-size:11px; color:#F2C14E}
+.thanh{height:6px; border-radius:4px; background:#22332E; margin-top:9px; overflow:hidden}
+.thanh i{display:block; height:100%; width:62%; border-radius:4px;
+  background:linear-gradient(90deg,#F2C14E,#E08A2B)}
+.the-hang .n{margin-top:6px; font-size:9.5px; color:#9FB6AC}
+.mucnho{
+  font-size:9.5px; letter-spacing:.12em; text-transform:uppercase; color:#6F8880;
+  margin:11px 0 6px; font-family:var(--mono);
+}
+.mon-hang{
+  display:flex; align-items:center; gap:9px; padding:7px 0;
+  border-top:1px solid #1B2A26;
+}
+.mon-hang .ha{
+  width:30px; height:30px; border-radius:8px; background:#13201D; border:1px solid #22332E;
+  display:grid; place-items:center; font-size:13px;
+}
+.mon-hang .tn{font-size:11px; color:#C9DAD4}
+.mon-hang .gi{margin-left:auto; font-family:var(--mono); font-size:10.5px; color:#EAF0EC}
+.them{
+  width:21px; height:21px; border-radius:6px; background:var(--teal-sau); color:#fff;
+  display:grid; place-items:center; font-size:13px; line-height:1; font-weight:600;
+}
 
-  ul.gach{margin:0; padding-left:20px; display:flex; flex-direction:column; gap:7px}
-  ul.gach li{font-size:14.5px; color:var(--chu2); line-height:1.55}
-  ul.gach li b{color:var(--chu); font-weight:650}
+/* ---------- lưới việc quản lý ---------- */
+.luoi6{display:grid; gap:1px; margin-top:32px; background:var(--vien-manh);
+  border:1px solid var(--vien-manh); border-radius:4px; overflow:hidden}
+@media(min-width:640px){ .luoi6{grid-template-columns:1fr 1fr} }
+.o6{background:var(--ni); padding:20px 20px 18px}
+.o6 h3{
+  margin:0 0 4px; font-family:var(--serif); font-size:19px; font-weight:400;
+  display:flex; align-items:center; gap:9px;
+}
+.o6 h3 svg{width:18px; height:18px; stroke:var(--den); fill:none; stroke-width:1.7;
+  stroke-linecap:round; stroke-linejoin:round; flex:none}
+.o6 p{margin:0; color:var(--chu2); font-size:14.5px; line-height:1.55}
 
-  code{
-    font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:13px;
-    background:var(--the2); border:1px solid var(--vien); border-radius:6px; padding:1px 6px;
-  }
+/* ---------- bảng hạng ---------- */
+.hang-ds{margin-top:32px; display:flex; flex-direction:column; gap:1px;
+  background:var(--vien-manh); border:1px solid var(--vien-manh)}
+.hang-d{
+  background:var(--ni); display:grid; grid-template-columns:auto 1fr auto;
+  gap:16px; align-items:center; padding:15px 18px;
+}
+.hang-d .tron{
+  width:30px; height:30px; border-radius:50%; flex:none;
+  box-shadow:inset -2px -3px 6px rgba(0,0,0,.4);
+}
+.hang-d .tn{font-family:var(--serif); font-size:18px; line-height:1.2}
+.hang-d .qua{font-size:13.5px; color:var(--chu3); margin-top:2px}
+.hang-d .so{text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap}
+.hang-d .so b{display:block; font-size:17px; color:var(--den); font-family:var(--mono)}
+.hang-d .so span{font-size:11.5px; color:var(--chu3); font-family:var(--mono)}
+@media(max-width:480px){
+  .hang-d{grid-template-columns:auto 1fr; gap:13px; padding:14px}
+  .hang-d .so{grid-column:2; text-align:left; display:flex; gap:10px; align-items:baseline}
+  .hang-d .so b{display:inline}
+}
 
-  footer{
-    margin-top:52px; padding-top:20px; border-top:1px solid var(--vien);
-    font-size:13px; color:var(--chu3); line-height:1.6;
-  }
-  a{color:var(--xanh)}
-  a:focus-visible, [tabindex]:focus-visible{outline:2px solid var(--xanh); outline-offset:3px; border-radius:4px}
+/* ---------- nổi bật ---------- */
+.noi-ds{margin-top:32px; display:grid; gap:26px}
+@media(min-width:700px){ .noi-ds{grid-template-columns:1fr 1fr; gap:30px} }
+.noi h3{
+  font-family:var(--serif); font-weight:400; font-size:23px; margin:0 0 9px;
+  line-height:1.2; letter-spacing:-.01em;
+}
+.noi h3::before{
+  content:""; display:block; width:26px; height:2px; background:var(--den);
+  margin-bottom:13px; opacity:.8;
+}
+.noi p{margin:0; color:var(--chu2); font-size:15.5px}
+.noi p + p{margin-top:10px}
+
+/* ---------- khoá ---------- */
+.khoa{
+  margin-top:32px; background:var(--the); border:1px solid var(--vien);
+  border-radius:3px; padding:26px 24px;
+  background-image:linear-gradient(180deg,rgba(233,180,76,.05),transparent 60%);
+}
+.khoa h3{font-family:var(--serif); font-weight:400; font-size:22px; margin:0 0 10px}
+.khoa p{margin:0; color:var(--chu2); font-size:15.5px}
+.khoa p + p{margin-top:11px}
+.khoa b{color:var(--chu); font-weight:600}
+
+ul.ds{margin:26px 0 0; padding:0; list-style:none; display:flex; flex-direction:column; gap:14px}
+ul.ds li{
+  padding-left:24px; position:relative; color:var(--chu2); font-size:15.5px;
+}
+ul.ds li::before{
+  content:""; position:absolute; left:0; top:.62em; width:9px; height:9px;
+  border-radius:50%; background:var(--den); opacity:.75;
+}
+ul.ds li b{color:var(--chu); font-weight:600}
+
+.chan{
+  margin-top:64px; border-top:1px solid var(--vien-manh); padding:22px 0 60px;
+  color:var(--chu3); font-size:13px; display:flex; gap:12px; align-items:center;
+  flex-wrap:wrap;
+}
+.chan .bi{--d:22px}
+a{color:var(--den)}
+a:focus-visible{outline:2px solid var(--den); outline-offset:3px}
+@media(prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
 </style>
 </head>
 <body>
 
-<div class="khung">
 
-  <header class="dau">
-    <span class="nhan">Trợ lý vận hành quán bi-a</span>
-    <h1>PoolStaff<span class="cham">.</span></h1>
-    <p class="dat">Một app cho cả quán: nhân viên báo món về quầy, quầy chốt bill, quản lý nhìn doanh thu — còn khách quét QR trên bàn là tự đặt món, xin cắt clip pha bóng đẹp và theo dõi hạng của mình.</p>
-    <div class="so-hang">
-      <div class="so"><b>5</b><span>vai dùng app</span></div>
-      <div class="so"><b>6</b><span>nhóm việc của quản lý</span></div>
-      <div class="so"><b>16</b><span>bảng đồng bộ nhiều máy</span></div>
+<header class="hero">
+  <div class="bao hero-trong">
+    <div class="eyebrow">Trợ lý vận hành quán bi-a</div>
+    <h1>Cả quán chạy<br/>trên <i>một</i> app</h1>
+    <p class="dat">Nhân viên báo món ngay tại bàn, quầy thấy liền. Khách quét mã trên bàn là tự gọi đồ, xin cắt clip pha bóng đẹp và theo dõi hạng của mình. Quản lý mở máy ra là biết quán đang thế nào.</p>
+    <div class="rack">
+      <div class="bi" style="--c:var(--bi1)" data-n="1"></div>
+      <div class="bi" style="--c:var(--bi2)" data-n="2"></div>
+      <div class="bi" style="--c:var(--bi3)" data-n="3"></div>
+      <div class="bi" style="--c:var(--bi4)" data-n="4"></div>
+      <div class="bi soc" style="--c:var(--bi6)" data-n="14"></div>
+      <div class="bi" style="--c:var(--bi8)" data-n="8"></div>
     </div>
-  </header>
+  </div>
+  <div class="bang-go">
+    <div class="bao">
+      <div class="o"><b>5</b><span>vai dùng app</span></div>
+      <div class="o"><b>6</b><span>nhóm việc quản lý</span></div>
+      <div class="o"><b>16</b><span>bảng đồng bộ</span></div>
+    </div>
+  </div>
+</header>
+
+<div class="bao">
 
   <section>
-    <div class="tieu"><h2>Ai dùng, thấy gì</h2></div>
-    <p class="phu">Mở app lên chọn vai, mỗi vai vào thẳng màn cần nhất cho công việc của mình.</p>
-    <div class="luoi doi">
+    <div class="nhan-muc"><span>Ai dùng</span></div>
+    <h2>Mỗi người mở lên là thấy đúng việc của mình</h2>
+    <p class="mo-ta">Không ai phải học cách dùng. Chọn vai xong app vào thẳng màn cần nhất, mấy việc còn lại nằm ở menu.</p>
 
-      <article class="the">
-        <div class="the-dau">
-          <div class="bieu l"><svg viewBox="0 0 24 24"><path d="M3 20V9l9-5 9 5v11"/><path d="M9 20v-6h6v6"/></svg></div>
-          <div>
-            <div class="ten">Quản lý</div>
-            <div class="man">Mở vào <em>Doanh thu</em></div>
-          </div>
+    <div class="vai-ds">
+
+      <article class="vai">
+        <div class="bi" style="--c:var(--bi1)" data-n="1"></div>
+        <div>
+          <h3 class="vai-ten">Quản lý</h3>
+          <div class="vai-man">Mở vào màn Doanh thu</div>
+          <p>Nhìn cả quán trong một màn: bàn nào đang chơi, hôm nay thu bao nhiêu, ai đang trực ca, tủ gậy nào tới hạn đóng phí. Chấm đỏ trên menu chỉ thẳng chỗ đang có việc chờ.</p>
+          <div class="viec"><b>Sơ đồ bàn</b><b>Sổ sách</b><b>Khuyến mãi</b><b>Phân ca</b><b>Lỗi &amp; lương</b><b>Thực đơn</b></div>
         </div>
-        <p>Nhìn được toàn quán trong một màn: bàn nào đang chơi, hôm nay thu bao nhiêu, ai đang trực ca, tủ nào tới hạn đóng phí.</p>
-        <div class="chips"><span class="chip">Sơ đồ bàn</span><span class="chip">Sổ sách</span><span class="chip">Khuyến mãi</span><span class="chip">Phân ca</span><span class="chip">Lỗi &amp; lương</span></div>
       </article>
 
-      <article class="the">
-        <div class="the-dau">
-          <div class="bieu"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
-          <div>
-            <div class="ten">Nhân viên phục vụ</div>
-            <div class="man">Mở vào <em>Báo món</em></div>
-          </div>
+      <article class="vai">
+        <div class="bi" style="--c:var(--bi2)" data-n="2"></div>
+        <div>
+          <h3 class="vai-ten">Nhân viên phục vụ</h3>
+          <div class="vai-man">Mở vào màn Báo món</div>
+          <p>Khách gọi gì thì bấm ngay tại bàn, quầy nhận được liền, khỏi chạy đi chạy lại. Khách bấm chuông xin xếp bi hay nhắc đồ chưa mang ra thì máy kêu về đúng người đang trực ca.</p>
+          <div class="viec"><b>Báo món</b><b>Đầu việc theo ca</b><b>Gậy &amp; tủ</b><b>Đào tạo</b><b>Chấm công</b></div>
         </div>
-        <p>Khách gọi gì thì bấm ngay tại bàn, quầy nhận được liền. Khách bấm chuông xin xếp bi hay nhắc đồ chưa mang ra thì máy kêu về đúng người đang trực.</p>
-        <div class="chips"><span class="chip">Báo món</span><span class="chip">Đầu việc theo ca</span><span class="chip">Gậy &amp; tủ</span><span class="chip">Đào tạo</span><span class="chip">Chấm công</span></div>
       </article>
 
-      <article class="the">
-        <div class="the-dau">
-          <div class="bieu v"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M7 7V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2M7 12h4"/></svg></div>
-          <div>
-            <div class="ten">Nhân viên quầy</div>
-            <div class="man">Mở vào <em>Quầy</em></div>
-          </div>
+      <article class="vai">
+        <div class="bi" style="--c:var(--bi3)" data-n="3"></div>
+        <div>
+          <h3 class="vai-ten">Nhân viên quầy</h3>
+          <div class="vai-man">Mở vào màn Quầy</div>
+          <p>Một màn gom hết order của mọi bàn, hiện ngay khi nhân viên hoặc khách vừa bấm. Gọi thêm đồ ngoài và kiểm kho cuối ca cũng ở đây.</p>
+          <div class="viec"><b>Order các bàn</b><b>Gọi món ngoài</b><b>Kiểm kho</b><b>Gậy &amp; tủ</b></div>
         </div>
-        <p>Một màn gom hết order của mọi bàn theo thời gian thực, gọi thêm đồ ngoài, kiểm kho cuối ca.</p>
-        <div class="chips"><span class="chip">Order các bàn</span><span class="chip">Gọi món ngoài</span><span class="chip">Kiểm kho</span><span class="chip">Gậy &amp; tủ</span></div>
       </article>
 
-      <article class="the">
-        <div class="the-dau">
-          <div class="bieu v"><svg viewBox="0 0 24 24"><path d="M8 4h8v4a4 4 0 0 1-8 0V4Z"/><path d="M8 5H5v2a3 3 0 0 0 3 3M16 5h3v2a3 3 0 0 1-3 3M10 20h4M12 12v8"/></svg></div>
-          <div>
-            <div class="ten">Tổ chức giải</div>
-            <div class="man">Mở vào <em>Giải đấu</em></div>
-          </div>
+      <article class="vai">
+        <div class="bi" style="--c:var(--bi4)" data-n="4"></div>
+        <div>
+          <h3 class="vai-ten">Tổ chức giải</h3>
+          <div class="vai-man">Mở vào màn Giải đấu</div>
+          <p>Dựng lịch giải, nhận đăng ký, nhập kết quả từng trận, tra lại hồ sơ khách đã tham gia những giải trước.</p>
+          <div class="viec"><b>Lịch giải</b><b>Đăng ký</b><b>Kết quả</b><b>Hồ sơ khách</b></div>
         </div>
-        <p>Dựng lịch giải, nhận đăng ký, nhập kết quả từng trận và tra lại hồ sơ khách tham gia.</p>
-        <div class="chips"><span class="chip">Lịch giải</span><span class="chip">Đăng ký</span><span class="chip">Kết quả</span><span class="chip">Khách</span></div>
       </article>
 
-      <article class="the" style="grid-column:1/-1">
-        <div class="the-dau">
-          <div class="bieu d"><svg viewBox="0 0 24 24"><path d="M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"/><path d="M11 18h2"/></svg></div>
-          <div>
-            <div class="ten">Khách hàng</div>
-            <div class="man">Quét QR trên bàn là vào thẳng, đăng nhập bằng số điện thoại, máy tự nhớ</div>
-          </div>
+      <article class="vai">
+        <div class="bi soc" style="--c:var(--bi6)" data-n="14"></div>
+        <div>
+          <h3 class="vai-ten">Khách hàng</h3>
+          <div class="vai-man">Quét mã trên bàn là vào thẳng</div>
+          <p>Khách không phải tải app nào cả. Quét mã dán trên bàn là ra trang đặt món với số bàn chọn sẵn, đăng nhập bằng số điện thoại và máy tự nhớ cho lần sau.</p>
+          <div class="viec"><b>Đặt món</b><b>Đặt bàn trước</b><b>Xin cắt clip</b><b>Hạng &amp; quà</b><b>Đăng ký giải</b><b>Góp ý</b></div>
         </div>
-        <p>Khách không phải tải app nào cả. Quét mã dán trên bàn là ra trang đặt món đã chọn sẵn số bàn của mình.</p>
-        <div class="chips"><span class="chip">Đặt món</span><span class="chip">Đặt bàn trước</span><span class="chip">Xin cắt clip</span><span class="chip">Xem hạng &amp; quà</span><span class="chip">Đăng ký giải</span><span class="chip">Góp ý</span></div>
       </article>
 
     </div>
   </section>
 
   <section>
-    <div class="tieu"><h2>Sáu nhóm việc của quản lý</h2></div>
-    <p class="phu">Gom theo quản lý cái gì, mỗi việc chỉ nằm ở đúng một chỗ, bấm sâu nhất một lớp. Chấm đỏ hiện trên nhóm nào là nhóm đó có việc chờ xử.</p>
-    <div class="nhom">
-      <div class="hang">
-        <div class="hang-ten"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Bàn</div>
-        <div><p class="phu" style="margin:0">Sơ đồ bàn cả quán, bấm để mở bàn và chốt bill. Con số trên nhãn là số bàn đang có khách.</p></div>
+    <div class="nhan-muc"><span>Nhìn thật</span></div>
+    <h2>Màn quầy và màn khách</h2>
+    <p class="mo-ta">Bên trái là thứ nhân viên quầy nhìn suốt ca. Bên phải là thứ khách thấy sau khi quét mã trên bàn.</p>
+
+    <div class="may-hang">
+
+      <div class="may-khoi">
+        <div class="may">
+          <div class="man">
+            <div class="tai"></div>
+            <div class="man-dau">
+              <div>
+                <h4>Quầy</h4>
+                <div class="sub">Order chờ xử · ca tối</div>
+              </div>
+              <div class="cc">
+                <div class="nutron">
+                  <svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+                  <span class="cham">3</span>
+                </div>
+              </div>
+            </div>
+            <div class="man-noi">
+              <div class="don">
+                <div class="don-dau"><span class="ban">Bàn 4</span><span class="gio">20:14</span></div>
+                <div class="mon">2 Trà đá · 1 Sting · 1 Hướng dương</div>
+                <div class="tien"><b>45.000đ</b><span class="trang-thai">Chờ mang ra</span></div>
+              </div>
+              <div class="don">
+                <div class="don-dau"><span class="ban">Bàn 7</span><span class="gio">20:09</span></div>
+                <div class="mon">1 Mì xào bò · 1 Coca</div>
+                <div class="tien"><b>72.000đ</b><span class="trang-thai">Đang làm</span></div>
+              </div>
+              <div class="don">
+                <div class="don-dau"><span class="ban">Bàn 2</span><span class="gio">19:58</span></div>
+                <div class="mon">3 Bia Tiger · 1 Đậu phộng</div>
+                <div class="tien"><b>118.000đ</b><span class="trang-thai xong">Đã xong</span></div>
+              </div>
+              <div class="don">
+                <div class="don-dau"><span class="ban">Bàn 9</span><span class="gio">19:41</span></div>
+                <div class="mon">1 Nước suối</div>
+                <div class="tien"><b>10.000đ</b><span class="trang-thai xong">Đã xong</span></div>
+              </div>
+            </div>
+            <div class="man-chan">
+              <div class="on"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M7 7V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2"/></svg>Quầy</div>
+              <div><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Bàn</div>
+              <div><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg>Đầu việc</div>
+              <div><svg viewBox="0 0 24 24"><path d="M5 8h14l-1 12H6L5 8Z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>Kho</div>
+            </div>
+            <div class="vach"></div>
+          </div>
+        </div>
+        <div class="may-chu"><b>Máy quầy</b>Order hiện lên ngay lúc nhân viên bấm ở bàn</div>
       </div>
-      <div class="hang">
-        <div class="hang-ten"><svg viewBox="0 0 24 24"><path d="M3 17l5-6 4 4 5-7 4 5"/><path d="M3 21h18"/></svg>Doanh thu</div>
-        <div><p class="phu" style="margin:0">Sổ sách · Tăng doanh số · Khuyến mãi · Giải đấu</p></div>
+
+      <div class="may-khoi">
+        <div class="may">
+          <div class="man">
+            <div class="tai"></div>
+            <div class="man-dau">
+              <div>
+                <h4>Hạng của tôi</h4>
+                <div class="sub">Xin chào, anh Tuấn · bàn 4</div>
+              </div>
+              <div class="cc">
+                <div class="nutron">
+                  <svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+                  <span class="cham">1</span>
+                </div>
+              </div>
+            </div>
+            <div class="man-noi">
+              <div class="the-hang">
+                <div class="h">
+                  <div class="bi" style="--d:22px;--c:#C0C6C9" data-n=""></div>
+                  <b>Hạng Bạc</b>
+                  <span class="g">41,5 giờ</span>
+                </div>
+                <div class="thanh"><i></i></div>
+                <div class="n">Còn 18,5 giờ nữa lên hạng Vàng — giảm 15% tiền bàn</div>
+              </div>
+              <div class="mucnho">Gọi thêm</div>
+              <div class="mon-hang">
+                <div class="ha">🧊</div>
+                <div><div class="tn">Trà đá</div></div>
+                <div class="gi">5.000đ</div>
+                <div class="them">+</div>
+              </div>
+              <div class="mon-hang">
+                <div class="ha">🥤</div>
+                <div><div class="tn">Sting dâu</div></div>
+                <div class="gi">15.000đ</div>
+                <div class="them">+</div>
+              </div>
+              <div class="mon-hang">
+                <div class="ha">🍜</div>
+                <div><div class="tn">Mì xào bò</div></div>
+                <div class="gi">55.000đ</div>
+                <div class="them">+</div>
+              </div>
+              <div class="mon-hang">
+                <div class="ha">🥜</div>
+                <div><div class="tn">Đậu phộng rang</div></div>
+                <div class="gi">20.000đ</div>
+                <div class="them">+</div>
+              </div>
+            </div>
+            <div class="man-chan">
+              <div><svg viewBox="0 0 24 24"><path d="M6 3h12l-1 8a5 5 0 0 1-10 0L6 3Z"/><path d="M12 16v5M8 21h8"/></svg>Đặt món</div>
+              <div><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 11h18"/></svg>Đặt bàn</div>
+              <div><svg viewBox="0 0 24 24"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="m22 8-6 4 6 4V8Z"/></svg>Clip</div>
+              <div class="on"><svg viewBox="0 0 24 24"><path d="m12 3 2.6 5.6 6.1.8-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6L3.3 9.4l6.1-.8L12 3Z"/></svg>Hạng</div>
+            </div>
+            <div class="vach"></div>
+          </div>
+        </div>
+        <div class="may-chu"><b>Máy khách</b>Quét mã trên bàn là vào thẳng, không phải tải app</div>
       </div>
-      <div class="hang">
-        <div class="hang-ten"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20a6 6 0 0 1 12 0M16 5.5a3 3 0 0 1 0 5M18 20a5.5 5.5 0 0 0-3-4.9"/></svg>Khách</div>
-        <div><p class="phu" style="margin:0">Danh sách (lọc khách VIP) · Hạng &amp; quà · Góp ý · Gửi tin cho khách · Highlight</p></div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="nhan-muc"><span>Quản lý</span></div>
+    <h2>Sáu nhóm việc, mỗi thứ nằm đúng một chỗ</h2>
+    <p class="mo-ta">Gom theo quản lý cái gì chứ không theo màn hình, bấm sâu nhất một lớp là tới nơi.</p>
+
+    <div class="luoi6">
+      <div class="o6">
+        <h3><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Bàn</h3>
+        <p>Sơ đồ bàn cả quán, bấm để mở bàn và chốt bill. Con số trên nhãn là số bàn đang có khách.</p>
       </div>
-      <div class="hang">
-        <div class="hang-ten"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="15" rx="2"/><path d="M9 5V3.5h6V5M8 12h3M8 16h8"/></svg>Nhân sự</div>
-        <div><p class="phu" style="margin:0">Cả đội · Phân ca · Lỗi &amp; lương · Hồ sơ nhân viên · Đào tạo · Ca của tôi</p></div>
+      <div class="o6">
+        <h3><svg viewBox="0 0 24 24"><path d="M3 17l5-6 4 4 5-7 4 5"/><path d="M3 21h18"/></svg>Doanh thu</h3>
+        <p>Sổ sách · Tăng doanh số · Khuyến mãi · Giải đấu</p>
       </div>
-      <div class="hang">
-        <div class="hang-ten"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/><circle cx="18.5" cy="18" r="2.5"/></svg>Vận hành</div>
-        <div><p class="phu" style="margin:0">Đầu việc · Tủ gửi gậy · Gậy quán · Kho · Bảo trì</p></div>
+      <div class="o6">
+        <h3><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20a6 6 0 0 1 12 0M16 5.5a3 3 0 0 1 0 5M18 20a5.5 5.5 0 0 0-3-4.9"/></svg>Khách</h3>
+        <p>Danh sách và lọc khách VIP · Hạng &amp; quà · Góp ý · Gửi tin · Highlight</p>
       </div>
-      <div class="hang">
-        <div class="hang-ten"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2 2 2 0 1 1-4 0 1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3 15a2 2 0 1 1 0-4 1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 10 4a2 2 0 1 1 4 0a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.7 1.7 0 0 0 21 11a2 2 0 1 1 0 4Z"/></svg>Cài đặt</div>
-        <div><p class="phu" style="margin:0">Thực đơn · Bàn &amp; giá · Sinh mã QR cho từng bàn</p></div>
+      <div class="o6">
+        <h3><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="15" rx="2"/><path d="M9 5V3.5h6V5M8 12h3M8 16h8"/></svg>Nhân sự</h3>
+        <p>Cả đội · Phân ca · Lỗi &amp; lương · Hồ sơ nhân viên · Đào tạo · Ca của tôi</p>
+      </div>
+      <div class="o6">
+        <h3><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/><circle cx="18.5" cy="18" r="2.5"/></svg>Vận hành</h3>
+        <p>Đầu việc · Tủ gửi gậy · Gậy quán · Kho · Bảo trì</p>
+      </div>
+      <div class="o6">
+        <h3><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/></svg>Cài đặt</h3>
+        <p>Thực đơn · Bàn &amp; giá · Sinh mã QR dán lên từng bàn</p>
       </div>
     </div>
   </section>
 
   <section>
-    <div class="tieu"><h2>Khách chơi càng nhiều, càng được giảm</h2></div>
-    <p class="phu">Mỗi lần chốt bill có gắn tên khách là khách được cộng giờ chơi. Đủ mốc giờ thì lên hạng, tiền bàn tự trừ chiết khấu ngay lúc chốt và quán tặng một phần quà.</p>
-    <div class="cuon">
-      <table>
-        <thead>
-          <tr><th>Hạng</th><th class="n">Từ</th><th class="n">Giảm tiền bàn</th><th>Quà khi lên hạng</th></tr>
-        </thead>
-        <tbody>
-          <tr><td class="hang-ten-vip"><span class="vien-hang" style="background:var(--chu3)"></span>Khách mới</td><td class="n">0 giờ</td><td class="n">—</td><td>—</td></tr>
-          <tr><td class="hang-ten-vip"><span class="vien-hang" style="background:#A97142"></span>Đồng</td><td class="n">10 giờ</td><td class="n">5%</td><td>1 trà đá</td></tr>
-          <tr><td class="hang-ten-vip"><span class="vien-hang" style="background:#9AA5A8"></span>Bạc</td><td class="n">30 giờ</td><td class="n">10%</td><td>1 nước suối + 1 hướng dương</td></tr>
-          <tr><td class="hang-ten-vip"><span class="vien-hang" style="background:var(--vang)"></span>Vàng</td><td class="n">60 giờ</td><td class="n">15%</td><td>1 phần đồ ăn nhẹ</td></tr>
-          <tr><td class="hang-ten-vip"><span class="vien-hang" style="background:var(--xanh)"></span>Kim cương</td><td class="n">120 giờ</td><td class="n">20%</td><td>Voucher 200.000đ</td></tr>
-        </tbody>
-      </table>
+    <div class="nhan-muc"><span>Giữ khách</span></div>
+    <h2>Chơi càng nhiều giờ, tiền bàn càng rẻ</h2>
+    <p class="mo-ta">Mỗi lần chốt bill có gắn tên khách là khách được cộng giờ chơi. Đủ mốc thì lên hạng, chiết khấu tự trừ ngay lúc chốt bill và quán tặng một phần quà.</p>
+
+    <div class="hang-ds">
+      <div class="hang-d">
+        <div class="tron" style="background:radial-gradient(circle at 34% 28%,#8FA39B,#4E625B)"></div>
+        <div><div class="tn">Khách mới</div><div class="qua">Chưa có ưu đãi</div></div>
+        <div class="so"><b>0%</b><span>từ 0 giờ</span></div>
+      </div>
+      <div class="hang-d">
+        <div class="tron" style="background:radial-gradient(circle at 34% 28%,#C98A5A,#8A5A32)"></div>
+        <div><div class="tn">Đồng</div><div class="qua">Tặng 1 trà đá</div></div>
+        <div class="so"><b>5%</b><span>từ 10 giờ</span></div>
+      </div>
+      <div class="hang-d">
+        <div class="tron" style="background:radial-gradient(circle at 34% 28%,#DCE3E6,#98A4A9)"></div>
+        <div><div class="tn">Bạc</div><div class="qua">Tặng 1 nước suối và 1 hướng dương</div></div>
+        <div class="so"><b>10%</b><span>từ 30 giờ</span></div>
+      </div>
+      <div class="hang-d">
+        <div class="tron" style="background:radial-gradient(circle at 34% 28%,#F7D98A,#C99418)"></div>
+        <div><div class="tn">Vàng</div><div class="qua">Tặng 1 phần đồ ăn nhẹ</div></div>
+        <div class="so"><b>15%</b><span>từ 60 giờ</span></div>
+      </div>
+      <div class="hang-d">
+        <div class="tron" style="background:radial-gradient(circle at 34% 28%,#BFEAF5,#5FA9CE)"></div>
+        <div><div class="tn">Kim cương</div><div class="qua">Voucher 200.000đ</div></div>
+        <div class="so"><b>20%</b><span>từ 120 giờ</span></div>
+      </div>
     </div>
-    <div style="height:12px"></div>
-    <ul class="gach">
-      <li>Mốc giờ, phần trăm giảm và quà đều <b>sửa được</b> trong mục Khách → Hạng &amp; quà.</li>
-      <li>Nhân viên bấm <b>Đã trao</b> khi đưa quà cho khách, khỏi trao trùng.</li>
-      <li>Khách mở app xem hạng của mình và thanh <b>còn bao nhiêu giờ nữa lên hạng</b>.</li>
-      <li>Khách cũ đã tích điểm từ trước được quy đổi tạm sang giờ chơi, không ai bị tụt hạng.</li>
+
+    <ul class="ds">
+      <li>Mốc giờ, phần trăm giảm và quà đều <b>sửa được</b> ngay trong app, không phải nhờ ai.</li>
+      <li>Nhân viên bấm <b>Đã trao</b> lúc đưa quà cho khách, khỏi trao trùng hai lần.</li>
+      <li>Khách mở app xem được hạng của mình và <b>còn bao nhiêu giờ nữa lên hạng</b>.</li>
+      <li>Khách cũ đã tích điểm từ trước được quy đổi sang giờ chơi, không ai bị tụt hạng.</li>
     </ul>
   </section>
 
   <section>
-    <div class="tieu"><h2>Những thứ quán khác không có</h2></div>
-    <div class="luoi">
+    <div class="nhan-muc"><span>Riêng của quán</span></div>
+    <h2>Mấy thứ quán khác chưa làm được</h2>
 
+    <div class="noi-ds">
       <div class="noi">
-        <h3>Cắt clip pha bóng đẹp cho khách</h3>
-        <p>Khách vừa đánh được một đường ngon thì mở app chọn bàn và mốc giờ phút giây, có sẵn nút "vừa xong" và "1 phút trước", rồi chọn lấy trước sau bao nhiêu giây. Quán biết đúng đoạn cần trích trên camera.</p>
-        <p>Quản lý cắt xong dán link video gửi lại, hoặc báo không cắt được kèm lý do. Video nằm luôn trong mục Video của tôi của khách; link YouTube và file mp4 phát ngay trong app.</p>
+        <h3>Cắt clip pha bóng đẹp</h3>
+        <p>Khách vừa đánh được đường ngon thì mở app chọn bàn và mốc giờ phút giây, có sẵn nút vừa xong và một phút trước, rồi chọn lấy trước sau bao nhiêu giây. Quán biết đúng đoạn cần trích trên camera.</p>
+        <p>Cắt xong dán link gửi lại, hoặc báo không cắt được kèm lý do. Video nằm luôn trong mục Video của tôi bên phía khách, link YouTube và file mp4 phát ngay trong app.</p>
       </div>
-
       <div class="noi">
-        <h3>Tủ gửi gậy như sơ đồ bàn</h3>
-        <p>Ô tủ bày thành sơ đồ, bấm ô trống là cho khách quen thuê: ghi gậy khách gửi, ngày bắt đầu, ngày hết hạn, phí theo tháng. Viền xanh là đang thuê, vàng là còn dưới 7 ngày, đỏ là quá hạn. Tủ nào cần nhắc khách đóng phí thì nổi lên đầu danh sách.</p>
-        <p>Gậy của quán cho mượn cũng quản riêng: mã cơ, tình trạng tốt hay cần bảo dưỡng hay hỏng, đang cho bàn nào mượn. Cơ hỏng thì máy không cho mượn.</p>
+        <h3>Tủ gửi gậy bày như sơ đồ bàn</h3>
+        <p>Ô tủ xếp thành sơ đồ, bấm ô trống là cho khách quen thuê: ghi gậy khách gửi, ngày bắt đầu, ngày hết hạn, phí theo tháng. Viền xanh là đang thuê, vàng là còn dưới bảy ngày, đỏ là quá hạn.</p>
+        <p>Gậy của quán cho mượn quản riêng: mã cơ, tình trạng tốt hay cần bảo dưỡng hay hỏng, đang cho bàn nào mượn. Cơ hỏng thì máy không cho mượn.</p>
       </div>
-
       <div class="noi">
-        <h3>Khách quét QR là gọi được món</h3>
-        <p>Quản lý sinh mã QR cho từng bàn rồi in dán lên bàn. Khách quét là vào thẳng trang đặt món với số bàn chọn sẵn, không phải tải app, không phải gọi nhân viên.</p>
+        <h3>Khách quét mã là gọi được món</h3>
+        <p>Sinh mã QR cho từng bàn rồi in dán lên bàn. Khách quét là vào thẳng trang đặt món với số bàn chọn sẵn, không phải tải app, không phải gọi nhân viên.</p>
       </div>
-
       <div class="noi">
-        <h3>Nhiều máy nhìn cùng một dữ liệu</h3>
-        <p>Order từ máy nhân viên hay từ điện thoại khách hiện ngay ở quầy. Góp ý, khách và điểm, thực đơn, bàn, khuyến mãi, thông báo, tủ gậy đều đồng bộ chung.</p>
-        <p>Mất mạng thì app vẫn chạy bình thường bằng bộ nhớ máy, biểu tượng đám mây ở góc trên báo trạng thái. Chấm công, đào tạo, lương, kho và giải đấu vốn lưu riêng từng máy.</p>
+        <h3>Nhiều máy nhìn chung một dữ liệu</h3>
+        <p>Order từ máy nhân viên hay từ điện thoại khách đều hiện ngay ở quầy. Góp ý, khách và điểm, thực đơn, bàn, khuyến mãi, thông báo, tủ gậy đều chung.</p>
+        <p>Mất mạng thì app vẫn chạy bình thường bằng bộ nhớ máy, biểu tượng ở góc trên báo trạng thái.</p>
       </div>
-
     </div>
   </section>
 
   <section>
-    <div class="tieu"><h2>Dữ liệu khách được khoá lại</h2></div>
-    <div class="noi canh-bao">
+    <div class="nhan-muc"><span>An toàn</span></div>
+    <h2>Dữ liệu khách được khoá lại</h2>
+    <div class="khoa">
       <h3>Nhân viên phải có khoá quán mới vào được</h3>
-      <p>Mỗi máy nhân viên nhập khoá quán một lần. Ai nghỉ việc hoặc mất máy thì đổi khoá trên trang quản trị rồi báo khoá mới cho các máy còn lại.</p>
+      <p>Mỗi máy nhân viên nhập khoá quán đúng một lần. Ai nghỉ việc hoặc mất máy thì đổi khoá rồi báo khoá mới cho các máy còn lại, máy cũ hết đọc được dữ liệu ngay.</p>
       <p>Phía khách chỉ <b>gửi</b> được đơn, góp ý, đặt bàn và yêu cầu cắt clip. Khách không đọc được danh sách khách của quán, không xoá được gì, và chỉ thấy đúng hồ sơ của chính mình.</p>
     </div>
   </section>
 
-  <section>
-    <div class="tieu"><h2>Chạy thế nào</h2></div>
-    <ul class="gach">
-      <li><b>Trên máy quán:</b> nhấp đúp <code>index.html</code> là chạy, không cần cài gì.</li>
-      <li><b>Trên mạng:</b> mở bằng đường dẫn quán đang dùng, điện thoại nào cũng vào được.</li>
-      <li><b>Muốn nhiều máy dùng chung:</b> chạy hai file cài đặt cơ sở dữ liệu theo đúng thứ tự, tạo bảng trước rồi khoá quyền sau.</li>
-    </ul>
-  </section>
-
-  <footer>
-    PoolStaff · trợ lý vận hành quán bi-a. Trang này liệt kê chức năng theo đúng bản đang chạy trong <code>nguon/app.jsx</code>.
-  </footer>
+  <div class="chan">
+    <div class="bi" style="--c:var(--bi8)" data-n="8"></div>
+    <div>PoolStaff · trợ lý vận hành quán bi-a. Chức năng liệt kê theo đúng bản đang chạy.</div>
+  </div>
 
 </div>
+
 </body>
 </html>
