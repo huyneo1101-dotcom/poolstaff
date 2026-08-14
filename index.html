@@ -242,6 +242,9 @@ table.data tr:last-child td{border-bottom:0}
 .bnav button .bd{position:absolute;top:0;right:22%;background:var(--red);color:#fff;font-size:9px;font-weight:700;min-width:15px;height:15px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 3px}
 @media(min-width:900px){.side{display:flex}}
 @media(max-width:899px){.side{display:none}}
+/* Thanh bên ẩn ở màn hẹp, nên nút đổi nền & đăng xuất chuyển lên thanh trên cùng */
+.chi-hep{display:flex}
+@media(min-width:900px){.chi-hep{display:none}}
 
 /* login */
 .loginwrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:radial-gradient(circle at 30% 10%,rgba(15,118,110,.14),transparent 60%),var(--bg)}
@@ -2335,7 +2338,21 @@ function App() {
     className: "ti ti-bell"
   }), pendingCount + openAlerts > 0 && /*#__PURE__*/React.createElement("span", {
     className: "dot"
-  }, pendingCount + openAlerts))), /*#__PURE__*/React.createElement("div", {
+  }, pendingCount + openAlerts)), /*#__PURE__*/React.createElement("button", {
+    className: "iconbtn chi-hep",
+    onClick: () => setDark(!dark),
+    title: dark ? 'Chế độ sáng' : 'Chế độ tối'
+  }, /*#__PURE__*/React.createElement("i", {
+    className: 'ti ' + (dark ? 'ti-sun' : 'ti-moon')
+  })), /*#__PURE__*/React.createElement("button", {
+    className: "iconbtn chi-hep",
+    onClick: () => {
+      if (confirm('Đăng xuất / đổi người dùng?')) setMeId(null);
+    },
+    title: "Đăng xuất / đổi người dùng"
+  }, /*#__PURE__*/React.createElement("i", {
+    className: "ti ti-logout"
+  }))), /*#__PURE__*/React.createElement("div", {
     className: "content"
   }, view === 'order' && /*#__PURE__*/React.createElement(OrderView, {
     s: shared

@@ -809,6 +809,12 @@ function App(){
           {!isManager&&<button className="iconbtn" onClick={()=>setView(isCounter?'counter':'order')} title="Order chờ & yêu cầu">
             <i className="ti ti-bell"/>{(pendingCount+openAlerts)>0&&<span className="dot">{pendingCount+openAlerts}</span>}
           </button>}
+          <button className="iconbtn chi-hep" onClick={()=>setDark(!dark)} title={dark?'Chế độ sáng':'Chế độ tối'}>
+            <i className={'ti '+(dark?'ti-sun':'ti-moon')}/>
+          </button>
+          <button className="iconbtn chi-hep" onClick={()=>{if(confirm('Đăng xuất / đổi người dùng?'))setMeId(null);}} title="Đăng xuất / đổi người dùng">
+            <i className="ti ti-logout"/>
+          </button>
         </header>
         <div className="content">
           {view==='order'&&<OrderView s={shared}/>}
