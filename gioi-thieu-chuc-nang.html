@@ -346,6 +346,63 @@ ul.ds li::before{
 }
 ul.ds li b{color:var(--chu); font-weight:600}
 
+/* ---------- kế hoạch tăng doanh số ---------- */
+.ke-hoach{margin-top:34px; display:grid; gap:26px}
+@media(min-width:720px){ .ke-hoach{grid-template-columns:1fr 1fr; gap:30px 36px} }
+.kh h3{
+  font-family:var(--serif); font-weight:400; font-size:20px; margin:0;
+  padding-bottom:11px; border-bottom:1px solid var(--vien);
+}
+.kh ul{list-style:none; margin:14px 0 0; padding:0; display:flex; flex-direction:column; gap:11px}
+.kh li{
+  display:grid; grid-template-columns:auto 1fr; gap:11px; align-items:start;
+  font-size:14.5px; color:var(--chu2); line-height:1.5;
+}
+.tick{
+  width:16px; height:16px; margin-top:3px; flex:none; border-radius:4px;
+  border:1.5px solid rgba(233,180,76,.45); position:relative;
+}
+.tick.xong{background:var(--den); border-color:var(--den)}
+.tick.xong::after{
+  content:""; position:absolute; left:4.6px; top:1.4px; width:4px; height:8px;
+  border:solid #0A211C; border-width:0 2px 2px 0; transform:rotate(43deg);
+}
+.kh li.xong{color:var(--chu3); text-decoration:line-through; text-decoration-color:rgba(233,180,76,.35)}
+
+/* ---------- bảng thưởng phạt ---------- */
+.phat{margin-top:32px; border:1px solid var(--vien-manh)}
+.phat-d{
+  display:flex; align-items:center; gap:14px; padding:13px 18px;
+  border-top:1px solid var(--vien-manh); background:var(--ni); font-size:15px;
+}
+.phat-d:first-child{border-top:0}
+.phat-d .tien{
+  margin-left:auto; font-family:var(--mono); font-size:14.5px; color:#E4837A;
+  font-variant-numeric:tabular-nums; white-space:nowrap;
+}
+.cong-thuc{
+  margin-top:22px; background:var(--the); border-left:2px solid var(--den);
+  padding:18px 20px; font-size:15px; color:var(--chu2);
+}
+.cong-thuc b{
+  display:block; color:var(--chu); font-family:var(--mono); font-size:14px;
+  font-weight:500; margin-bottom:9px; line-height:1.7;
+}
+.cong-thuc .du{color:var(--den)}
+
+/* ---------- chăm sóc khách ---------- */
+.gop-y{display:grid; gap:14px; margin-top:30px}
+@media(min-width:620px){ .gop-y{grid-template-columns:repeat(3,1fr)} }
+.gy{
+  background:var(--the); border:1px solid var(--vien-manh); padding:16px 16px 15px;
+  display:flex; flex-direction:column; gap:9px;
+}
+.gy svg{width:28px; height:28px; stroke:currentColor; fill:none; stroke-width:1.6;
+  stroke-linecap:round; stroke-linejoin:round}
+.gy.tot{color:#5CC08D} .gy.thuong{color:#D9B45E} .gy.te{color:#E4837A}
+.gy b{font-size:15px; color:var(--chu); font-weight:600}
+.gy p{margin:0; font-size:14px; color:var(--chu2); line-height:1.5}
+
 .chan{
   margin-top:64px; border-top:1px solid var(--vien-manh); padding:22px 0 60px;
   color:var(--chu3); font-size:13px; display:flex; gap:12px; align-items:center;
@@ -600,6 +657,113 @@ a:focus-visible{outline:2px solid var(--den); outline-offset:3px}
         <p>Thực đơn · Bàn &amp; giá · Sinh mã QR dán lên từng bàn</p>
       </div>
     </div>
+  </section>
+
+  <section>
+    <div class="nhan-muc"><span>Tăng doanh số</span></div>
+    <h2>Sẵn một danh sách việc làm ra tiền, tick dần từng cái</h2>
+    <p class="mo-ta">App không chỉ ghi lại tiền đã thu. Mục Tăng doanh số nằm ngay cạnh Sổ sách, dựng sẵn bốn nhóm việc kèm từng đầu việc con — làm xong cái nào tick cái đó, quán nhìn ra mình còn bỏ sót đường kiếm tiền nào.</p>
+
+    <div class="ke-hoach">
+
+      <div class="kh">
+        <h3>Tiền bàn</h3>
+        <ul>
+          <li class="xong"><span class="tick xong"></span>Áp giá cao điểm buổi tối và cuối tuần</li>
+          <li><span class="tick"></span>Ưu đãi giờ thấp điểm buổi sáng, đầu tuần để lấp bàn trống</li>
+          <li><span class="tick"></span>Combo giờ chơi kèm đồ uống trọn gói theo nhóm</li>
+          <li><span class="tick"></span>Thẻ giờ trả trước, nạp 500.000đ tặng 50.000đ</li>
+          <li><span class="tick"></span>Nhận đặt bàn trước cho khung giờ đông</li>
+        </ul>
+      </div>
+
+      <div class="kh">
+        <h3>Đồ uống và dịch vụ</h3>
+        <ul>
+          <li class="xong"><span class="tick xong"></span>Nhân viên chủ động mời nước lúc mở bàn</li>
+          <li><span class="tick"></span>Combo nước kèm đồ ăn nhẹ giá tốt</li>
+          <li><span class="tick"></span>Menu đánh dấu rõ món bán chạy</li>
+          <li><span class="tick"></span>Đẩy mạnh gọi món ăn ngoài để khách ngồi lâu hơn</li>
+        </ul>
+      </div>
+
+      <div class="kh">
+        <h3>Giữ chân khách và marketing</h3>
+        <ul>
+          <li class="xong"><span class="tick xong"></span>Tích giờ chơi lên hạng, giảm tiền bàn theo hạng</li>
+          <li><span class="tick"></span>Gửi tin khuyến mãi thẳng vào app khách</li>
+          <li><span class="tick"></span>Mở giải đấu nhỏ định kỳ để kéo khách quen</li>
+          <li><span class="tick"></span>Cắt clip pha bóng đẹp cho khách mang đi khoe</li>
+        </ul>
+      </div>
+
+      <div class="kh">
+        <h3>Quản trị chi phí</h3>
+        <ul>
+          <li><span class="tick"></span>Kiểm kho cuối ca, chặn thất thoát đồ uống</li>
+          <li><span class="tick"></span>Bảo trì bàn đúng chu kỳ, đỡ tiền sửa lớn</li>
+          <li><span class="tick"></span>Soát lệch quỹ cuối ca</li>
+          <li><span class="tick"></span>Tính lương theo giờ công thật, không ước lượng</li>
+        </ul>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="nhan-muc"><span>Thưởng phạt</span></div>
+    <h2>Lỗi nào mất bao nhiêu, ghi rõ từ đầu</h2>
+    <p class="mo-ta">Quán treo sẵn bảng mức phạt, nhân viên biết trước chứ không đợi tới lúc trừ lương mới cãi nhau. Ghi lỗi cho ai thì chọn loại lỗi, tiền phạt tự điền theo bảng. Mức tiền sửa được, thêm bớt loại lỗi cũng ngay trong app.</p>
+
+    <div class="phat">
+      <div class="phat-d">Đi làm trễ<span class="tien">20.000đ</span></div>
+      <div class="phat-d">Nghỉ không báo trước<span class="tien">100.000đ</span></div>
+      <div class="phat-d">Quên phủ bạt, tắt đèn cuối ca<span class="tien">30.000đ</span></div>
+      <div class="phat-d">Làm vỡ hỏng đồ: bi, cơ, ly<span class="tien">50.000đ</span></div>
+      <div class="phat-d">Sai order hoặc thái độ với khách<span class="tien">30.000đ</span></div>
+      <div class="phat-d">Lệch quỹ cuối ca<span class="tien">50.000đ</span></div>
+    </div>
+
+    <div class="cong-thuc">
+      <b>Thực lĩnh <span class="du">=</span> giờ công <span class="du">×</span> đơn giá theo giờ <span class="du">−</span> tổng phạt trong tháng</b>
+      Giờ công lấy thẳng từ chấm công chứ không nhập tay, nên tới kỳ lương là bảng tự ra đủ cả đội: ai làm bao nhiêu giờ, bị trừ bao nhiêu, còn lại bao nhiêu.
+    </div>
+
+    <ul class="ds">
+      <li>Nhân viên xem được <b>lỗi của chính mình</b> và tổng phạt tháng này ngay trong mục Ca của tôi.</li>
+      <li>Chiều ngược lại, điểm thưởng cho khách cũng cộng trừ tay được kèm lý do, có <b>lịch sử từng lần</b> nên không ai sửa lén.</li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="nhan-muc"><span>Chăm sóc khách</span></div>
+    <h2>Khách nghĩ gì, quán biết ngay trong ca</h2>
+    <p class="mo-ta">Khách góp ý thẳng trong app, chọn một trong ba mức rồi viết thêm nếu muốn. Góp ý mới đẩy chấm đỏ lên menu quản lý, khỏi đợi tới lúc khách bỏ đi mới biết quán có chuyện.</p>
+
+    <div class="gop-y">
+      <div class="gy tot">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0"/><path d="M9 9.5h.01M15 9.5h.01"/></svg>
+        <b>Hài lòng</b>
+        <p>Biết đường phát huy, và biết ca nào nhân viên nào đang làm tốt.</p>
+      </div>
+      <div class="gy thuong">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8.5 15h7"/><path d="M9 9.5h.01M15 9.5h.01"/></svg>
+        <b>Bình thường</b>
+        <p>Chưa có gì sai nhưng cũng chưa đáng quay lại — chỗ này mới là chỗ mất khách.</p>
+      </div>
+      <div class="gy te">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8.5 15.5a4.5 4.5 0 0 1 7 0"/><path d="M9 9.5h.01M15 9.5h.01"/></svg>
+        <b>Chưa hài lòng</b>
+        <p>Nổi lên đầu danh sách kèm bàn và giờ, gọi lại xin lỗi khách được ngay hôm đó.</p>
+      </div>
+    </div>
+
+    <ul class="ds">
+      <li><b>Gửi tin thẳng vào app khách</b> — báo khuyến mãi hoặc mời giải đấu, khách mở app là thấy, không tốn tiền tin nhắn.</li>
+      <li><b>Lọc khách VIP</b> để biết ai đang chơi nhiều nhất mà chăm riêng, ai lâu rồi không thấy quay lại.</li>
+      <li><b>Hồ sơ từng khách</b> giữ giờ chơi, điểm, quà đã trao, tủ gậy đang thuê và lịch sử góp ý.</li>
+      <li><b>Cắt clip pha bóng đẹp</b> gửi lại khách, khách mang đi khoe là quán được nhắc tên miễn phí.</li>
+    </ul>
   </section>
 
   <section>
