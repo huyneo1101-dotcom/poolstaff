@@ -1402,7 +1402,7 @@ function TasksView({s}){
     <div>
       <div className="seg">
         {Object.entries(SHIFT_TIME).map(([k,v])=>(
-          <button key={k} className={shift===k?'on':''} onClick={()=>setShift(k)}>{v.icon} Ca {v.label} · {v.start}–{v.end}</button>
+          <button key={k} className={shift===k?'on':''} onClick={()=>setShift(k)}>{v.icon} Ca {v.label} · {v.start.slice(0,2)}–{v.end.slice(0,2)}h</button>
         ))}
       </div>
 

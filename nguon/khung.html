@@ -86,11 +86,17 @@ input,textarea,select{font-family:inherit;font-size:14px}
 .btn.red{background:linear-gradient(135deg,#ef4444,#dc2626);box-shadow:0 4px 12px rgba(220,38,38,.3)}
 .btn.wide{padding:14px 16px;font-size:15px}
 
-/* seg tabs */
-.seg{display:flex;gap:4px;background:var(--card);border:1px solid var(--border);border-radius:13px;padding:4px;margin-bottom:16px;overflow-x:auto}
-.seg button{flex:1;white-space:nowrap;padding:9px 12px;border-radius:9px;font-weight:600;font-size:13px;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:6px;transition:all .14s}
-.seg button i{font-size:17px}
+/* Chuỗi dài không có dấu cách (đường dẫn, khoá) phải tự ngắt, không được đẩy rộng cả trang */
+code{overflow-wrap:anywhere;word-break:break-word}
+
+/* seg tabs — ⛔ CẤM kéo ngang. Menu dài hơn bề ngang màn thì XUỐNG DÒNG, không bao giờ
+   overflow-x (Huy chốt 15/08/2026). Lưới tự chia cột: máy 390px ra 2 cột, màn rộng 3-5 cột. */
+.seg{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:4px;background:var(--card);border:1px solid var(--border);border-radius:13px;padding:4px;margin-bottom:16px}
+.seg button{min-width:0;white-space:normal;line-height:1.25;text-align:center;padding:9px 10px;border-radius:9px;font-weight:600;font-size:13px;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:6px;transition:all .14s}
+.seg button i{font-size:17px;flex-shrink:0}
 .seg button.on{background:linear-gradient(135deg,var(--g),var(--g-dk));color:#fff}
+/* Dưới 508px lưới luôn đúng 2 cột → nút lẻ cuối cùng giãn hết hàng cho khỏi hụt một bên */
+@media(max-width:507px){.seg button:last-child:nth-child(odd){grid-column:1/-1}}
 
 /* cards / panels */
 .grid-stat{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:18px}
