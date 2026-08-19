@@ -630,6 +630,40 @@ const minToHM = m => {
   const h = Math.floor(m / 60);
   return (h ? h + 'h' : '') + pad(m % 60) + 'p';
 };
+
+/* ================= chấm công — MỘT bản gốc cho cả app ================= */
+/* Trần một ca. Ca dài nhất của quán là 08:00–24:00, nên 16 giờ vừa đủ cho ca tối kéo qua
+   nửa đêm mà vẫn chặn được ca "quên bấm ra ca" 20+ tiếng. Ba lỗi bên dưới đều ra thẳng tiền
+   lương và không lỗi nào phát ra — bảng vẫn in một con số trông hợp lý. */
+var TRAN_CA_PHUT = 16 * 60;
+
+/* Số phút công của MỘT bản ghi chấm công. Mọi nơi phải gọi hàm này, cấm chép lại phép tính:
+   trước 20/08/2026 công thức nằm rải 05 chỗ (màn ca của tôi, lịch sử của tôi, bảng cả đội,
+   bảng lương tháng) nên vá một chỗ là bốn chỗ kia vẫn sai.
+   ⛔ Khoảng ÂM trả 0 chứ không trả số âm: `out < in` (bấm nhầm, đồng hồ máy lệch, sửa tay số
+   liệu) từng TRỪ thẳng vào tổng công của chính người đó. */
+function phutCa(a) {
+  if (!a || !a.in || !a.out) return 0;
+  var p = Math.round((a.out - a.in) / 60000);
+  if (!(p > 0)) return 0;
+  return Math.min(p, TRAN_CA_PHUT);
+}
+
+/* Ngày phải ghi giờ RA CA. Ca tối khai 16:00–24:00 mà quán bi-a đóng cửa muộn, nên bấm ra ca
+   lúc 00:20 là chuyện thường — ghi vào ngày mới thì ngày cũ có `in` không `out`, ngày mới có
+   `out` không `in`, và phép cộng đòi đủ cả hai nên BỎ QUA cả hai: mất trắng 8 tiếng công.
+   Chỉ lùi ĐÚNG MỘT ngày và chỉ khi ca hôm qua còn đang mở. Lùi xa hơn thì một lần quên bấm
+   đẻ ra ca 72 tiếng; thà để nó thành ca hôm nay rồi người ta sửa tay. */
+function ngayRaCa(attend, sid, hom_nay) {
+  var t = new Date(hom_nay + 'T00:00');
+  t.setDate(t.getDate() - 1);
+  var hom_qua = t.getFullYear() + '-' + pad(t.getMonth() + 1) + '-' + pad(t.getDate());
+  var nay = ((attend || {})[hom_nay] || {})[sid];
+  if (nay && nay.in) return hom_nay; // đã vào ca hôm nay thì đóng đúng hôm nay
+  var a = ((attend || {})[hom_qua] || {})[sid];
+  if (a && a.in && !a.out) return hom_qua;
+  return hom_nay;
+}
 const AV_COLORS = ['#0f766e', '#2563eb', '#db2777', '#d97706', '#7c3aed', '#0891b2', '#16a34a', '#e11d48'];
 const avColor = id => AV_COLORS[(id.charCodeAt(0) + id.length) % AV_COLORS.length];
 const initials = n => n.split(' ').slice(-2).map(w => w[0]).join('').toUpperCase();
@@ -4781,10 +4815,13 @@ function MyShift({
     });
     flash('Đã vào ca lúc ' + nowHM());
   };
+  /* Ghi vào NGÀY VÀO CA, không phải ngày đang hiện: ca tối kéo qua nửa đêm thì `today()`
+     đã sang ngày mới và cả ca bị mất công (xem `ngayRaCa`). */
   const clockOut = () => {
     setAttend(v => {
+      const dr = ngayRaCa(v, me.id, d);
       const day = {
-        ...(v[d] || {})
+        ...(v[dr] || {})
       };
       day[me.id] = {
         ...(day[me.id] || {}),
@@ -4792,12 +4829,15 @@ function MyShift({
       };
       return {
         ...v,
-        [d]: day
+        [dr]: day
       };
     });
     flash('Đã ra ca lúc ' + nowHM());
   };
-  const workedMin = myAtt.in && myAtt.out ? Math.round((myAtt.out - myAtt.in) / 60000) : myAtt.in ? Math.round((Date.now() - myAtt.in) / 60000) : null;
+  const workedMin = myAtt.in && myAtt.out ? phutCa(myAtt) : myAtt.in ? phutCa({
+    in: myAtt.in,
+    out: Date.now()
+  }) : null;
   const lateMin = (() => {
     if (!myAtt.in || !mySched || mySched === 'off') return null;
     const st = SHIFT_TIME[mySched];
@@ -4993,8 +5033,7 @@ function MyHistory({
   });
   let totalMin = 0;
   days.forEach(d => {
-    const a = attend[d][me.id];
-    if (a.in && a.out) totalMin += Math.round((a.out - a.in) / 60000);
+    totalMin += phutCa(attend[d][me.id]);
   });
   return /*#__PURE__*/React.createElement("div", {
     className: "panel"
@@ -5011,7 +5050,7 @@ function MyHistory({
   }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", null, "Ngày"), /*#__PURE__*/React.createElement("th", null, "Ca"), /*#__PURE__*/React.createElement("th", null, "Vào"), /*#__PURE__*/React.createElement("th", null, "Ra"), /*#__PURE__*/React.createElement("th", null, "Giờ làm"))), /*#__PURE__*/React.createElement("tbody", null, days.map(d => {
     const a = attend[d][me.id];
     const sc = (schedule[d] || {})[me.id];
-    const wm = a.in && a.out ? Math.round((a.out - a.in) / 60000) : null;
+    const wm = a.in && a.out ? phutCa(a) : null;
     return /*#__PURE__*/React.createElement("tr", {
       key: d
     }, /*#__PURE__*/React.createElement("td", null, dayName(d), " ", fmtDateVN(d).slice(0, 5)), /*#__PURE__*/React.createElement("td", null, sc && sc !== 'off' ? SHIFT_TIME[sc].label : '—'), /*#__PURE__*/React.createElement("td", null, a.in ? new Date(a.in).toLocaleTimeString('vi', {
@@ -5053,7 +5092,7 @@ function TeamAttend({
   }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", null, "Nhân viên"), /*#__PURE__*/React.createElement("th", null, "Ca xếp"), /*#__PURE__*/React.createElement("th", null, "Vào"), /*#__PURE__*/React.createElement("th", null, "Ra"), /*#__PURE__*/React.createElement("th", null, "Giờ làm"))), /*#__PURE__*/React.createElement("tbody", null, staff.map(u => {
     const a = day[u.id] || {};
     const sc = sched[u.id];
-    const wm = a.in && a.out ? Math.round((a.out - a.in) / 60000) : null;
+    const wm = a.in && a.out ? phutCa(a) : null;
     let late = null;
     if (a.in && sc && sc !== 'off') {
       const st = SHIFT_TIME[sc];
@@ -9724,10 +9763,7 @@ function PenaltyPayroll({
   const monthMin = sid => {
     let m = 0;
     Object.keys(attend).forEach(d => {
-      if (monthOf(d) === ym) {
-        const a = (attend[d] || {})[sid];
-        if (a && a.in && a.out) m += Math.round((a.out - a.in) / 60000);
-      }
+      if (monthOf(d) === ym) m += phutCa((attend[d] || {})[sid]);
     });
     return m;
   };

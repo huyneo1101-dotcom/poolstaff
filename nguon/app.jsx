@@ -145,6 +145,40 @@ const nowHM=()=>{const d=new Date();return pad(d.getHours())+':'+pad(d.getMinute
 const fmtDateVN=s=>{const[y,m,d]=s.split('-');return `${d}/${m}/${y}`;};
 const dayName=s=>{const d=new Date(s+'T00:00');return ['CN','T2','T3','T4','T5','T6','T7'][d.getDay()];};
 const minToHM=m=>{if(m==null)return '—';const h=Math.floor(m/60);return (h?h+'h':'')+pad(m%60)+'p';};
+
+/* ================= chấm công — MỘT bản gốc cho cả app ================= */
+/* Trần một ca. Ca dài nhất của quán là 08:00–24:00, nên 16 giờ vừa đủ cho ca tối kéo qua
+   nửa đêm mà vẫn chặn được ca "quên bấm ra ca" 20+ tiếng. Ba lỗi bên dưới đều ra thẳng tiền
+   lương và không lỗi nào phát ra — bảng vẫn in một con số trông hợp lý. */
+var TRAN_CA_PHUT = 16 * 60;
+
+/* Số phút công của MỘT bản ghi chấm công. Mọi nơi phải gọi hàm này, cấm chép lại phép tính:
+   trước 20/08/2026 công thức nằm rải 05 chỗ (màn ca của tôi, lịch sử của tôi, bảng cả đội,
+   bảng lương tháng) nên vá một chỗ là bốn chỗ kia vẫn sai.
+   ⛔ Khoảng ÂM trả 0 chứ không trả số âm: `out < in` (bấm nhầm, đồng hồ máy lệch, sửa tay số
+   liệu) từng TRỪ thẳng vào tổng công của chính người đó. */
+function phutCa(a) {
+  if (!a || !a.in || !a.out) return 0;
+  var p = Math.round((a.out - a.in) / 60000);
+  if (!(p > 0)) return 0;
+  return Math.min(p, TRAN_CA_PHUT);
+}
+
+/* Ngày phải ghi giờ RA CA. Ca tối khai 16:00–24:00 mà quán bi-a đóng cửa muộn, nên bấm ra ca
+   lúc 00:20 là chuyện thường — ghi vào ngày mới thì ngày cũ có `in` không `out`, ngày mới có
+   `out` không `in`, và phép cộng đòi đủ cả hai nên BỎ QUA cả hai: mất trắng 8 tiếng công.
+   Chỉ lùi ĐÚNG MỘT ngày và chỉ khi ca hôm qua còn đang mở. Lùi xa hơn thì một lần quên bấm
+   đẻ ra ca 72 tiếng; thà để nó thành ca hôm nay rồi người ta sửa tay. */
+function ngayRaCa(attend, sid, hom_nay) {
+  var t = new Date(hom_nay + 'T00:00');
+  t.setDate(t.getDate() - 1);
+  var hom_qua = t.getFullYear() + '-' + pad(t.getMonth() + 1) + '-' + pad(t.getDate());
+  var nay = ((attend || {})[hom_nay] || {})[sid];
+  if (nay && nay.in) return hom_nay;          // đã vào ca hôm nay thì đóng đúng hôm nay
+  var a = ((attend || {})[hom_qua] || {})[sid];
+  if (a && a.in && !a.out) return hom_qua;
+  return hom_nay;
+}
 const AV_COLORS=['#0f766e','#2563eb','#db2777','#d97706','#7c3aed','#0891b2','#16a34a','#e11d48'];
 const avColor=id=>AV_COLORS[(id.charCodeAt(0)+id.length)%AV_COLORS.length];
 const initials=n=>n.split(' ').slice(-2).map(w=>w[0]).join('').toUpperCase();
@@ -1696,9 +1730,11 @@ function MyShift({s}){
   const mySched=(schedule[d]||{})[me.id];
 
   const clockIn=()=>{setAttend(v=>{const day={...(v[d]||{})};day[me.id]={...(day[me.id]||{}),in:Date.now()};return {...v,[d]:day};});flash('Đã vào ca lúc '+nowHM());};
-  const clockOut=()=>{setAttend(v=>{const day={...(v[d]||{})};day[me.id]={...(day[me.id]||{}),out:Date.now()};return {...v,[d]:day};});flash('Đã ra ca lúc '+nowHM());};
+  /* Ghi vào NGÀY VÀO CA, không phải ngày đang hiện: ca tối kéo qua nửa đêm thì `today()`
+     đã sang ngày mới và cả ca bị mất công (xem `ngayRaCa`). */
+  const clockOut=()=>{setAttend(v=>{const dr=ngayRaCa(v,me.id,d);const day={...(v[dr]||{})};day[me.id]={...(day[me.id]||{}),out:Date.now()};return {...v,[dr]:day};});flash('Đã ra ca lúc '+nowHM());};
 
-  const workedMin=myAtt.in&&myAtt.out?Math.round((myAtt.out-myAtt.in)/60000):(myAtt.in?Math.round((Date.now()-myAtt.in)/60000):null);
+  const workedMin=myAtt.in&&myAtt.out?phutCa(myAtt):(myAtt.in?phutCa({in:myAtt.in,out:Date.now()}):null);
   const lateMin=(()=>{if(!myAtt.in||!mySched||mySched==='off')return null;const st=SHIFT_TIME[mySched];if(!st)return null;
     const [sh,sm]=st.start.split(':').map(Number);const inD=new Date(myAtt.in);const startMs=new Date(inD).setHours(sh,sm,0,0);
     return Math.round((myAtt.in-startMs)/60000);})();
@@ -1757,7 +1793,7 @@ function MyHistory({attend,schedule,me}){
   const days=Object.keys(attend).filter(d=>(attend[d]||{})[me.id]).sort().reverse().slice(0,10);
   if(days.length===0)return <Empty icon="ti-calendar-off" text="Chưa có lịch sử chấm công"/>;
   let totalMin=0;
-  days.forEach(d=>{const a=attend[d][me.id];if(a.in&&a.out)totalMin+=Math.round((a.out-a.in)/60000);});
+  days.forEach(d=>{totalMin+=phutCa(attend[d][me.id]);});
   return (
     <div className="panel">
       <div className="panel-h"><i className="ti ti-history lead"/><b>Lịch sử gần đây</b><span className="chip g">Tổng {minToHM(totalMin)}</span></div>
@@ -1765,7 +1801,7 @@ function MyHistory({attend,schedule,me}){
         <table className="data">
           <thead><tr><th>Ngày</th><th>Ca</th><th>Vào</th><th>Ra</th><th>Giờ làm</th></tr></thead>
           <tbody>
-            {days.map(d=>{const a=attend[d][me.id];const sc=(schedule[d]||{})[me.id];const wm=a.in&&a.out?Math.round((a.out-a.in)/60000):null;
+            {days.map(d=>{const a=attend[d][me.id];const sc=(schedule[d]||{})[me.id];const wm=a.in&&a.out?phutCa(a):null;
               return <tr key={d}><td>{dayName(d)} {fmtDateVN(d).slice(0,5)}</td>
                 <td>{sc&&sc!=='off'?SHIFT_TIME[sc].label:'—'}</td>
                 <td>{a.in?new Date(a.in).toLocaleTimeString('vi',{hour:'2-digit',minute:'2-digit'}):'—'}</td>
@@ -1789,7 +1825,7 @@ function TeamAttend({attend,schedule,staff}){
         <table className="data">
           <thead><tr><th>Nhân viên</th><th>Ca xếp</th><th>Vào</th><th>Ra</th><th>Giờ làm</th></tr></thead>
           <tbody>
-            {staff.map(u=>{const a=day[u.id]||{};const sc=sched[u.id];const wm=a.in&&a.out?Math.round((a.out-a.in)/60000):null;
+            {staff.map(u=>{const a=day[u.id]||{};const sc=sched[u.id];const wm=a.in&&a.out?phutCa(a):null;
               let late=null;if(a.in&&sc&&sc!=='off'){const st=SHIFT_TIME[sc];const[sh,sm]=st.start.split(':').map(Number);const startMs=new Date(a.in).setHours(sh,sm,0,0);late=Math.round((a.in-startMs)/60000);}
               return <tr key={u.id}>
                 <td style={{display:'flex',alignItems:'center',gap:8}}><Avatar staff={u} size={28}/>{u.name.split(' ').slice(-1)[0]}</td>
@@ -3193,7 +3229,7 @@ function PenaltyPayroll({penaltyRules,setPenaltyRules,violations,attend,staff,fl
   const addRule=()=>{if(!nf.name.trim()){flash('Nhập tên lỗi');return;}setPenaltyRules(v=>[...v,{id:uid(),name:nf.name.trim(),amount:Number(nf.amount)||0}]);setNf({name:'',amount:20000});};
   const delRule=(id)=>{if(confirm('Xoá loại lỗi này?'))setPenaltyRules(v=>v.filter(r=>r.id!==id));};
   const setRuleAmt=(id,amount)=>setPenaltyRules(v=>v.map(r=>r.id===id?{...r,amount:Number(amount)||0}:r));
-  const monthMin=(sid)=>{let m=0;Object.keys(attend).forEach(d=>{if(monthOf(d)===ym){const a=(attend[d]||{})[sid];if(a&&a.in&&a.out)m+=Math.round((a.out-a.in)/60000);}});return m;};
+  const monthMin=(sid)=>{let m=0;Object.keys(attend).forEach(d=>{if(monthOf(d)===ym)m+=phutCa((attend[d]||{})[sid]);});return m;};
   const monthFines=(sid)=>violations.filter(v=>v.staffId===sid&&monthOf(v.date)===ym).reduce((a,v)=>a+(v.amount||0),0);
   return (
     <div>
