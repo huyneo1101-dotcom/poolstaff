@@ -54,3 +54,21 @@ App tĩnh một-file: toàn bộ UI + logic + CSS trong `index.html` (~308KB, ~4
 ## Skills dùng chung
 Repo hiện CHƯA cài `.claude/skills`. Cài: `/plugin marketplace add huyneo1101-dotcom/Claude_skills` → `/plugin install vibe-pwa-kit@huyneo-skills`.
 ⚠ Repo `Claude_skills` đã chuyển RIÊNG TƯ 12/08/2026 — lệnh trên chỉ chạy được trên máy đã đăng nhập `gh`. Máy lạ sẽ trượt ở bước clone. Ưu tiên ở đây: `supabase-security-audit`, `bigfile-nav`, `pwa-healthcheck`, `scaffold-vibe-pwa`, `deploy-static`.
+
+## Hai bảng cố ý cho cả internet đọc — đừng siết mù (chốt 20/08/2026)
+`ps_kv` và `ps_tours` mang policy `for select to anon using (true)` (mục 4a của
+`supabase-auth-rls.sql`) vì **app khách chạy không đăng nhập**: quét mã QR ở bàn là đọc ngay
+thực đơn, sơ đồ bàn, khuyến mãi và lịch giải. Siết hai bảng này là app khách trắng màn hình.
+
+Đo nội dung thật 20/08/2026 bằng khoá công khai: `ps_kv` đúng 04 khoá `promos` · `tables` ·
+`menu` · `tiers` (bậc thẻ chỉ khai mốc giờ, % giảm, quà — không tên khách nào); `ps_tours`
+chỉ có thể lệ giải (ngày, thể thức, phí, giải thưởng). Không dòng nào mang tên, số điện thoại
+hay doanh số. Người đăng ký giải nằm ở `ps_signups`, vẫn kín.
+
+Vì thế canary `HeThong/canh-ro-ri-supabase.py` đã chuyển hai bảng sang `BANG_MO` kèm lý do,
+và thêm `CAM_MO` canh chiều nới — nhét `ps_customers` hay bảng tiền nào vào danh sách mở thì
+`--tu-kiem` báo đỏ ngay (ca g · h · i, đã chứng minh trên 02 bản hỏng).
+
+⚠ `ps_broadcasts` cũng có policy anon read nhưng **đang rỗng nên chưa đo được nội dung** —
+cố ý GIỮ trong danh sách phải kín. Khi bảng có dữ liệu, canary sẽ kêu; lúc đó soi nội dung
+rồi mới quyết, đừng khai mở sẵn.
