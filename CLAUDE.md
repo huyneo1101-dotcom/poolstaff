@@ -72,3 +72,48 @@ và thêm `CAM_MO` canh chiều nới — nhét `ps_customers` hay bảng tiền
 ⚠ `ps_broadcasts` cũng có policy anon read nhưng **đang rỗng nên chưa đo được nội dung** —
 cố ý GIỮ trong danh sách phải kín. Khi bảng có dữ liệu, canary sẽ kêu; lúc đó soi nội dung
 rồi mới quyết, đừng khai mở sẵn.
+
+
+## 💰 CHỐT SỔ CUỐI CA — vế thứ hai của sổ sách (dựng 21/08/2026)
+
+Sổ sách vốn tính **một chiều**: cộng bill đã chốt rồi in ra một con số. Con số ấy trả lời
+*quán đáng lẽ thu bao nhiêu*, **không** trả lời *két có đúng chừng ấy không*. Chênh lệch
+giữa hai vế chính là chỗ tiền thật của quán rơi ra — bill quên chốt, khách chuyển khoản mà
+vẫn tính vào tiền mặt, nhân viên lấy tiền két đi mua đá rồi quên ghi. Không có vế thứ hai
+thì mọi lối rơi ấy đều **câm**: sổ vẫn đẹp, số vẫn cộng đúng, chỉ két là thiếu.
+
+Chỗ đứng: **Doanh thu → Chốt ca**. Phép tính nằm ở `tinhChotCa()` cạnh `sumRev`.
+
+```
+tiền mặt đáng lẽ có = tiền lẻ đầu ca + doanh số trong ca − khách chuyển khoản − tiền lấy két đi mua đồ
+lệch = đếm được − tiền mặt đáng lẽ có
+```
+
+⛔ **Bốn luật, đừng "dọn cho gọn" mất:**
+1. **CHƯA ĐẾM KÉT THÌ KHÔNG KẾT LUẬN.** Ô đếm để trống trả `lech: null`, không trả 0. Coi
+   "chưa đếm" là "đếm được 0đ" thì mỗi ca mở ra đã báo thiếu đúng bằng doanh số, và một
+   cảnh báo luôn đỏ là cảnh báo hết ai đọc. ⚠ Nhưng **gõ số 0 là ĐÃ đếm** và két rỗng thật
+   — phải kết luận ngay (ca 13 canh chiều này).
+2. **TIỀN ĐẦU CA VÀ KHOẢN CHI VÀO THẲNG PHÉP TÍNH**, không để người chốt trừ nhẩm — trừ
+   nhẩm là nguồn lệch riêng của nó, và lúc ấy con số cuối không kiểm lại được.
+3. **NGƯỠNG BỎ QUA `NGUONG_LECH` = 10.000₫** (dòng khai giá trị đang có hiệu lực). Nới quá
+   tay là mất vài trăm nghìn mỗi ca mà app vẫn hiện chữ "khớp" — ca 18 chặn trần 20.000₫.
+4. **LỆCH TỪ NGƯỠNG TRỞ LÊN THÌ BẮT GHI LÝ DO** mới cho chốt: ba tháng sau nhìn lại chỉ
+   thấy một con số âm mà không ai nhớ vì sao.
+
+**Bảng `ps_chotca`** — khuôn `id text / data jsonb / updated_at` như 15 bảng `ps_*` còn lại,
+nằm trong `CLOUD_OPTIONAL` nên quán chưa chạy lại SQL vẫn dùng app bình thường (dữ liệu ở
+localStorage). ⛔ **Bảng này mang tiền thật theo từng ca — KHÔNG thêm policy nào cho `anon`.**
+Nghiệm thu 21/08/2026 bằng lời gọi thật với khoá công khai, trên bảng ĐANG CÓ 01 dòng: đọc
+trả `[]` · ghi trả **401** · xoá không mất dòng nào. Ca 24 của bộ test canh chiều này bằng
+cách soi thẳng `supabase-auth-rls.sql`.
+
+```bash
+node /Users/Huy/Claude/App/PoolStaff/_test/kiem-chot-ca.js --tu-kiem
+```
+
+**25 ca · 11 bản hỏng**, đã nạp `BO_TEST` của `khoe.py`.
+
+⚠️ **`soTien()` phải bỏ dấu chấm phân cách nghìn**: người Việt gõ `1.500.000`, mà
+`Number('1.500.000')` ra `NaN` rồi thành 0 — ô nào gõ đủ dấu chấm là bảng báo thiếu đúng
+bằng số ấy. Lỗi này có thật trong bản đầu, bắt được lúc dựng bộ ca.

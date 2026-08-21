@@ -25,9 +25,9 @@ const SB_KEY='sb_publishable_74Lm6cc0CkoOOzy3A4IRrQ_BX0jHQcg';
 const CLOUD_ARRAYS={orders:'ps_orders',feedback:'ps_feedback',customers:'ps_customers',broadcasts:'ps_broadcasts',alerts:'ps_alerts',
   tours:'ps_tours',signups:'ps_signups',results:'ps_results',bookings:'ps_bookings',
   sessions:'ps_sessions',maint:'ps_maint',growth:'ps_growth',highlights:'ps_highlights',
-  lockers:'ps_lockers',cues:'ps_cues'};
+  lockers:'ps_lockers',cues:'ps_cues',chotca:'ps_chotca'};
 // Bảng mới thêm sau: quán chưa chạy lại supabase-schema.sql thì bỏ qua, phần còn lại vẫn đồng bộ
-const CLOUD_OPTIONAL={highlights:1,lockers:1,cues:1};
+const CLOUD_OPTIONAL={highlights:1,lockers:1,cues:1,chotca:1};
 // Khoá quán: dữ liệu khách (tên, số điện thoại, lịch sử) chỉ mở cho máy biết khoá.
 // Khoá nằm ở KHOA-QUAN.txt trên máy chủ quán, KHÔNG nằm trong file này và không lên GitHub.
 // Nhập một lần trên mỗi máy, trình duyệt nhớ. Không có khoá → app vẫn chạy bằng dữ liệu máy này.
@@ -556,6 +556,7 @@ function App(){
   const [highlights,setHighlights]=usePersist('ps.highlights',[]);
   const [lockers,setLockers]=usePersist('ps.lockers',SEED_LOCKERS);
   const [cues,setCues]=usePersist('ps.cues',SEED_CUES);
+  const [chotca,setChotca]=usePersist('ps.chotca',[]);
   const [maint,setMaint]=usePersist('ps.maint',SEED_MAINT);
   const [growth,setGrowth]=usePersist('ps.growth',SEED_GROWTH);
   const [fbSeen,setFbSeen]=usePersist('ps.fbSeen',0);
@@ -621,6 +622,7 @@ function App(){
   const setHighlightsC=cloudArr(setHighlights,'ps_highlights');
   const setLockersC=cloudArr(setLockers,'ps_lockers');
   const setCuesC=cloudArr(setCues,'ps_cues');
+  const setChotcaC=cloudArr(setChotca,'ps_chotca');
   const setMaintC=cloudArr(setMaint,'ps_maint');
   const setGrowthC=cloudArr(setGrowth,'ps_growth');
   const setMenuC=cloudKv(setMenu,'menu');
@@ -655,6 +657,7 @@ function App(){
         if(d.highlights)setHighlights(d.highlights); // null = chưa có bảng ps_highlights → giữ dữ liệu cục bộ
         if(d.lockers){ if(d.lockers.length)setLockers(d.lockers); else (L.lockers||[]).forEach(x=>Cloud.upsertRow('ps_lockers',x)); }
         if(d.cues){ if(d.cues.length)setCues(d.cues); else (L.cues||[]).forEach(x=>Cloud.upsertRow('ps_cues',x)); }
+        if(d.chotca)setChotca(d.chotca); // null = quán chưa chạy SQL tạo ps_chotca → giữ bản cục bộ
         if(d.maint&&d.maint.length)setMaint(d.maint); else (L.maint||[]).forEach(x=>Cloud.upsertRow('ps_maint',x));
         if(d.growth&&d.growth.length)setGrowth(d.growth); else (L.growth||[]).forEach(x=>Cloud.upsertRow('ps_growth',x));
         if(d.customers&&d.customers.length)setCustomers(d.customers.map(normCust));
@@ -684,6 +687,7 @@ function App(){
         if(d.highlights)subs.push(Cloud.subscribe('ps_highlights',p=>applyRealtime(setHighlights,p)));
         if(d.lockers)subs.push(Cloud.subscribe('ps_lockers',p=>applyRealtime(setLockers,p)));
         if(d.cues)subs.push(Cloud.subscribe('ps_cues',p=>applyRealtime(setCues,p)));
+        if(d.chotca)subs.push(Cloud.subscribe('ps_chotca',p=>applyRealtime(setChotca,p)));
         subs.push(Cloud.subscribe('ps_maint',p=>applyRealtime(setMaint,p)));
         subs.push(Cloud.subscribe('ps_growth',p=>applyRealtime(setGrowth,p)));
         subs.push(Cloud.sb.channel('rt_ps_kv').on('postgres_changes',{event:'*',schema:'public',table:'ps_kv'},p=>{
@@ -782,6 +786,7 @@ function App(){
     signups,setSignups:setSignupsC,results,setResults:setResultsC,bookings,setBookings:setBookingsC,
     sessions,setSessions:setSessionsC,maint,setMaint:setMaintC,growth,setGrowth:setGrowthC,
     highlights,setHighlights:setHighlightsC,lockers,setLockers:setLockersC,cues,setCues:setCuesC,
+    chotca,setChotca:setChotcaC,
     feedback,setFeedback:setFeedbackC,penaltyRules,setPenaltyRules,
     violations,setViolations,outfood,setOutfood,inventory,setInventory,endTasks,setEndTasks,
     broadcasts,setBroadcasts:setBroadcastsC,alerts,setAlerts:setAlertsC,fbSeen,setFbSeen,cloud,flash};
@@ -2291,11 +2296,13 @@ function BizView({s}){
     <div>
       <Seg cur={tab} onPick={setTab} tabs={[
         {id:'book',label:'Sổ sách',icon:'ti-book'},
+        {id:'chotca',label:'Chốt ca',icon:'ti-cash-register'},
         {id:'grow',label:'Tăng doanh số',icon:'ti-chart-line'},
         {id:'promo',label:'Khuyến mãi',icon:'ti-gift'},
         {id:'tour',label:'Giải đấu',icon:'ti-trophy'},
       ]}/>
       {tab==='book'&&<Ledger sessions={s.sessions} tours={s.tours} signups={s.signups}/>}
+      {tab==='chotca'&&<ChotCa sessions={s.sessions} chotca={s.chotca} setChotca={s.setChotca} me={s.me} flash={s.flash}/>}
       {tab==='grow'&&<GrowthView sessions={s.sessions} customers={s.customers} growth={s.growth} setGrowth={s.setGrowth} flash={s.flash}/>}
       {tab==='promo'&&<PromoMgr promos={s.promos} setPromos={s.setPromos} flash={s.flash}/>}
       {tab==='tour'&&<TourMgr tours={s.tours} setTours={s.setTours} signups={s.signups} flash={s.flash}/>}
@@ -2369,6 +2376,51 @@ const revOfMonth=(sessions,ym)=>sessions.filter(x=>x.endTs&&monthOf(dayKey(x.end
 const sumRev=(list)=>list.reduce((a,x)=>({table:a.table+(x.tableAmt||0),item:a.item+(x.itemAmt||0),
   disc:a.disc+(x.disc||0),total:a.total+(x.total||0)}),{table:0,item:0,disc:0,total:0});
 const prevMonth=(ym)=>{const [y,m]=ym.split('-').map(Number);const d=new Date(y,m-2,1);return d.getFullYear()+'-'+pad(d.getMonth()+1);};
+
+/* ===== CHỐT SỔ CUỐI CA — đối chiếu tiền mặt trong két với doanh số đã tính =====
+
+   Vì sao phải có: sổ sách của app tính MỘT CHIỀU — cộng các bill đã chốt rồi in ra một
+   con số. Con số ấy trả lời "quán đáng lẽ thu bao nhiêu", không trả lời "két có đúng
+   chừng ấy không". Chênh lệch giữa hai vế là chỗ tiền thật của quán rơi ra: bill quên
+   chốt, khách chuyển khoản mà vẫn tính vào tiền mặt, nhân viên lấy tiền két đi mua đá
+   rồi quên ghi. Không vế thứ hai thì mọi lối rơi ấy đều câm — sổ vẫn đẹp, số vẫn cộng
+   đúng, chỉ két là thiếu.
+
+   ⛔ CHƯA ĐẾM KÉT THÌ KHÔNG KẾT LUẬN LỆCH. `demDuoc` để trống trả `lech: null` chứ không
+   trả 0 hay số âm: coi "chưa đếm" là "đếm được 0đ" thì mỗi ca mở ra đã thấy báo thiếu
+   đúng bằng doanh số, và một cảnh báo luôn đỏ là cảnh báo hết ai đọc.
+
+   ⛔ TIỀN ĐẦU CA VÀ KHOẢN CHI PHẢI VÀO PHÉP TÍNH, không để người chốt tự trừ nhẩm —
+   trừ nhẩm là nguồn lệch riêng của nó, và lúc ấy con số cuối không còn kiểm lại được. */
+/* Đọc số người gõ. ⚠ Dấu chấm và dấu phẩy ở đây là PHÂN CÁCH NGHÌN, không phải dấu thập
+   phân: người Việt gõ "1.500.000", mà `Number('1.500.000')` ra NaN. Giữ chúng lại là mỗi ô
+   gõ đủ dấu chấm đọc thành 0 và bảng chốt ca báo thiếu đúng bằng số ấy. Tiền quán tính
+   theo nghìn nên không có phần lẻ để mất. */
+const soTien=v=>{const n=Number(String(v==null?'':v).replace(/[^0-9-]/g,''));return isFinite(n)?n:0;};
+function tinhChotCa({sessions,tuTs,denTs,dauCa,chuyenKhoan,chiTrongCa,demDuoc}){
+  const tu=Number(tuTs)||0, den=Number(denTs)||0;
+  const trongCa=(sessions||[]).filter(x=>x.endTs&&x.endTs>=tu&&x.endTs<=den);
+  const r=sumRev(trongCa);
+  const dau=soTien(dauCa), ck=soTien(chuyenKhoan), chi=soTien(chiTrongCa);
+  const tienMatPhaiCo=dau+r.total-ck-chi;
+  /* Chuỗi rỗng, khoảng trắng, null đều là CHƯA ĐẾM. Số 0 là đã đếm và két rỗng thật. */
+  const daDem=!(demDuoc===''||demDuoc==null||String(demDuoc).trim()==='');
+  const dem=daDem?soTien(demDuoc):null;
+  return {
+    soLuot:trongCa.length, tienBan:r.table, tienDo:r.item, giam:r.disc, doanhSo:r.total,
+    dauCa:dau, chuyenKhoan:ck, chiTrongCa:chi, tienMatPhaiCo, demDuoc:dem,
+    lech: daDem? dem-tienMatPhaiCo : null,
+  };
+}
+/* Ngưỡng bỏ qua: lệch dưới mức này là tiền lẻ trả lại, không phải chuyện phải truy.
+   Đây là dòng khai giá trị ĐANG CÓ HIỆU LỰC. */
+const NGUONG_LECH=10000;
+function mucLech(lech){
+  if(lech==null) return {k:'chua',t:'Chưa đếm két nên chưa đối chiếu được'};
+  if(Math.abs(lech)<NGUONG_LECH) return {k:'khop',t:'Khớp (lệch dưới '+fmtVnd(NGUONG_LECH)+')'};
+  return lech>0? {k:'thua',t:'Két THỪA '+fmtVnd(lech)} : {k:'thieu',t:'Két THIẾU '+fmtVnd(-lech)};
+}
+
 function Ledger({sessions,tours,signups}){
   const [ym,setYm]=useState(thisMonth());
   const td=sumRev(revOfDay(sessions,today()));
@@ -2418,6 +2470,100 @@ function Ledger({sessions,tours,signups}){
         </div>
       </div>
       <p className="hint" style={{textAlign:'center'}}>Doanh số tự tính từ bill đã chốt ở mục <b>Bàn</b> (tiền giờ + đồ đã gọi).</p>
+    </div>
+  );
+}
+
+/* Màn chốt ca: nhập bốn con số, app tự đối chiếu với doanh số của đúng khoảng ca đó. */
+function ChotCa({sessions,chotca,setChotca,me,flash}){
+  const gioTruoc=(h)=>{const d=new Date();d.setHours(d.getHours()-h,0,0,0);return d;};
+  const dtLocal=(d)=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());
+  const [tu,setTu]=useState(()=>dtLocal(gioTruoc(8)));
+  const [den,setDen]=useState(()=>dtLocal(new Date()));
+  const [dauCa,setDauCa]=useState('');
+  const [ck,setCk]=useState('');
+  const [chi,setChi]=useState('');
+  const [dem,setDem]=useState('');
+  const [ghi,setGhi]=useState('');
+  const r=tinhChotCa({sessions,tuTs:new Date(tu).getTime(),denTs:new Date(den).getTime(),
+    dauCa,chuyenKhoan:ck,chiTrongCa:chi,demDuoc:dem});
+  const m=mucLech(r.lech);
+  const mau=m.k==='khop'?'var(--grn)':m.k==='chua'?'var(--muted2)':'var(--r)';
+  const luu=()=>{
+    if(r.lech==null){flash('Đếm tiền trong két rồi nhập vào đã');return;}
+    /* Lệch lớn mà không ghi lý do thì bản chốt sổ không dùng được về sau: ba tháng nữa
+       nhìn lại chỉ thấy một con số âm mà không ai nhớ vì sao. */
+    if(Math.abs(r.lech)>=NGUONG_LECH&&!ghi.trim()){flash('Lệch '+fmtVnd(Math.abs(r.lech))+' — ghi lại lý do đã');return;}
+    setChotca(v=>[{id:'cc_'+uid(),tuTs:new Date(tu).getTime(),denTs:new Date(den).getTime(),
+      boi:(me&&me.name)||'',luc:Date.now(),ghi:ghi.trim(),
+      soLuot:r.soLuot,doanhSo:r.doanhSo,dauCa:r.dauCa,chuyenKhoan:r.chuyenKhoan,
+      chiTrongCa:r.chiTrongCa,tienMatPhaiCo:r.tienMatPhaiCo,demDuoc:r.demDuoc,lech:r.lech},...(v||[])]);
+    setDem('');setGhi('');setChi('');setCk('');setDauCa('');
+    flash('Đã chốt ca');
+  };
+  const ds=(chotca||[]).slice(0,20);
+  return (
+    <div>
+      <div className="panel">
+        <div className="panel-h"><i className="ti ti-cash-register lead"/><b>Chốt ca này</b></div>
+        <div className="panel-b">
+          <div className="grid2" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+            <label className="fld"><span>Ca bắt đầu</span>
+              <input className="inp" type="datetime-local" value={tu} onChange={e=>setTu(e.target.value)}/></label>
+            <label className="fld"><span>Ca kết thúc</span>
+              <input className="inp" type="datetime-local" value={den} onChange={e=>setDen(e.target.value)}/></label>
+            <label className="fld"><span>Tiền lẻ để sẵn đầu ca</span>
+              <input className="inp" inputMode="numeric" value={dauCa} onChange={e=>setDauCa(e.target.value)} placeholder="0"/></label>
+            <label className="fld"><span>Khách trả chuyển khoản</span>
+              <input className="inp" inputMode="numeric" value={ck} onChange={e=>setCk(e.target.value)} placeholder="0"/></label>
+            <label className="fld"><span>Lấy tiền két đi mua đồ</span>
+              <input className="inp" inputMode="numeric" value={chi} onChange={e=>setChi(e.target.value)} placeholder="0"/></label>
+            <label className="fld"><span>Đếm được trong két</span>
+              <input className="inp" inputMode="numeric" value={dem} onChange={e=>setDem(e.target.value)} placeholder="đếm rồi nhập"/></label>
+          </div>
+          <div className="tbl-scroll" style={{marginTop:12}}>
+            <table className="data">
+              <tbody>
+                <tr><td>Bill đã chốt trong ca</td><td style={{textAlign:'right'}}>{r.soLuot} lượt</td></tr>
+                <tr><td>Doanh số (bàn {fmtVnd(r.tienBan)} · đồ {fmtVnd(r.tienDo)})</td>
+                  <td style={{textAlign:'right'}}><b>{fmtVnd(r.doanhSo)}</b></td></tr>
+                <tr><td>Tiền mặt đáng lẽ có trong két</td>
+                  <td style={{textAlign:'right'}}><b>{fmtVnd(r.tienMatPhaiCo)}</b></td></tr>
+                <tr><td>Đếm được</td><td style={{textAlign:'right'}}>{r.demDuoc==null?'—':fmtVnd(r.demDuoc)}</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div className="card" style={{marginTop:10,textAlign:'center',borderLeft:'4px solid '+mau}}>
+            <div style={{fontFamily:'"Baloo 2"',fontSize:24,fontWeight:800,color:mau}}>{m.t}</div>
+            <div className="hint">Đáng lẽ có = tiền lẻ đầu ca + doanh số − chuyển khoản − tiền lấy đi mua đồ</div>
+          </div>
+          <label className="fld" style={{marginTop:10}}><span>Ghi chú (bắt buộc khi lệch từ {fmtVnd(NGUONG_LECH)})</span>
+            <input className="inp" value={ghi} onChange={e=>setGhi(e.target.value)} placeholder="vd: bàn 7 quên chốt bill, khách nợ 50k"/></label>
+          <button className="btn pri block" style={{marginTop:10}} onClick={luu}><i className="ti ti-lock-check"/>Chốt ca</button>
+        </div>
+      </div>
+      <div className="panel">
+        <div className="panel-h"><i className="ti ti-history lead"/><b>Các ca đã chốt</b></div>
+        <div className="tbl-scroll">
+          <table className="data">
+            <thead><tr><th>Ca</th><th>Doanh số</th><th>Đếm được</th><th>Lệch</th><th>Người chốt</th></tr></thead>
+            <tbody>
+              {ds.length===0&&<tr><td colSpan="5" style={{textAlign:'center',color:'var(--muted2)',padding:20}}>Chưa chốt ca nào</td></tr>}
+              {ds.map(c=>{const mm=mucLech(c.lech);return (
+                <tr key={c.id}>
+                  <td>{fmtDateVN(dayKey(c.denTs)).slice(0,5)} {pad(new Date(c.tuTs).getHours())}h–{pad(new Date(c.denTs).getHours())}h</td>
+                  <td>{fmtVnd(c.doanhSo)}</td><td>{fmtVnd(c.demDuoc)}</td>
+                  <td style={{color:mm.k==='khop'?'var(--grn)':'var(--r)',fontWeight:700}}>
+                    {mm.k==='khop'?'khớp':(c.lech>0?'+':'')+fmtVnd(c.lech)}</td>
+                  <td>{c.boi||'—'}{c.ghi?<div className="hint">{c.ghi}</div>:null}</td>
+                </tr>
+              );})}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <p className="hint" style={{textAlign:'center'}}>Doanh số lấy từ bill đã chốt ở mục <b>Bàn</b> trong đúng khoảng ca.
+        Lệch thường đến từ bill quên chốt, khách chuyển khoản mà chưa khai, hoặc tiền lấy đi mua đồ chưa ghi.</p>
     </div>
   );
 }

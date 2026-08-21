@@ -66,6 +66,12 @@ create table if not exists ps_cues (
   id text primary key, data jsonb, updated_at timestamptz default now()
 );
 
+-- Chốt sổ cuối ca: đối chiếu tiền mặt đếm trong két với doanh số đã tính.
+-- ⛔ Bảng này mang tiền thật của quán theo từng ca — KHÔNG thêm policy nào cho `anon`.
+create table if not exists ps_chotca (
+  id text primary key, data jsonb, updated_at timestamptz default now()
+);
+
 -- 2) RLS — BẬT KHOÁ CHO MỌI BẢNG ---------------------------
 --
 --  ⚠️ PHẦN CẤP QUYỀN ĐÃ CHUYỂN SANG FILE  supabase-auth-rls.sql
@@ -90,7 +96,8 @@ declare t text;
 begin
   foreach t in array array['ps_orders','ps_feedback','ps_customers','ps_kv','ps_broadcasts','ps_alerts',
                            'ps_tours','ps_signups','ps_results','ps_bookings',
-                           'ps_sessions','ps_maint','ps_growth','ps_highlights','ps_lockers','ps_cues']
+                           'ps_sessions','ps_maint','ps_growth','ps_highlights','ps_lockers','ps_cues',
+                           'ps_chotca']
   loop
     if not exists (
       select 1 from pg_publication_tables
