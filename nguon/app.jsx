@@ -561,12 +561,30 @@ function App(){
   const [growth,setGrowth]=usePersist('ps.growth',SEED_GROWTH);
   const [fbSeen,setFbSeen]=usePersist('ps.fbSeen',0);
   const [meId,setMeId]=usePersist('ps.me',null);
-  const [dark,setDark]=useState(()=>store.get('ps.dark',false)===true||localStorage.getItem('ps.dark')==='1');
+  /* Chưa chọn tay thì ĐI THEO CÀI ĐẶT MÁY (nạp 22/08/2026). App dùng trong quán, phần lớn
+     ca làm là buổi tối; trước đó app luôn mở ra nền sáng dù máy đang để tối, và nhân viên
+     phải tự tìm nút trong menu. Bấm tay một lần thì lựa chọn ấy thắng hệ thống mãi. */
+  const [dark,setDark]=useState(()=>{
+    if(localStorage.getItem('ps.dark')==null){
+      try{ return window.matchMedia('(prefers-color-scheme: dark)').matches; }catch(e){ return false; }
+    }
+    return store.get('ps.dark',false)===true||localStorage.getItem('ps.dark')==='1';
+  });
   const [view,setView]=useState('order');
   const [toast,setToast]=useState(null);
   const [cloud,setCloud]=useState('off'); // off | syncing | synced | error
 
   useEffect(()=>{document.body.classList.toggle('dark',dark);store.set('ps.dark',dark);},[dark]);
+  /* Máy đổi tông giữa chừng thì app đi theo, chừng nào người dùng chưa bấm tay. Cờ riêng
+     `ps.darkTay` chứ không đo khoá `ps.dark`: hiệu ứng ngay trên ghi khoá ấy mỗi lượt mở
+     nên phép so «chưa có khoá» sẽ luôn sai sau nhịp đầu. */
+  useEffect(()=>{
+    if(localStorage.getItem('ps.darkTay')==='1') return;
+    let mq; try{ mq=window.matchMedia('(prefers-color-scheme: dark)'); }catch(e){ return; }
+    const theo=e=>{ if(localStorage.getItem('ps.darkTay')!=='1') setDark(e.matches); };
+    mq.addEventListener?mq.addEventListener('change',theo):mq.addListener(theo);
+    return ()=>{ mq.removeEventListener?mq.removeEventListener('change',theo):mq.removeListener(theo); };
+  },[]);
   // Cập nhật dữ liệu mẫu khi cấu trúc đổi (prototype): giữ dữ liệu vận hành & chỉnh sửa của người dùng
   useEffect(()=>{
     const V=9;
@@ -834,7 +852,7 @@ function App(){
         </nav>
         <div className="side-foot">
           <div className="meline"><Avatar staff={me} size={34}/><div><div className="nm">{me.name}</div><div className="rl">{roleLabel(me.role)}</div></div></div>
-          <button className="tgl" onClick={()=>setDark(!dark)}><i className={'ti '+(dark?'ti-sun':'ti-moon')}/>{dark?'Chế độ sáng':'Chế độ tối'}</button>
+          <button className="tgl" onClick={()=>{ try{localStorage.setItem('ps.darkTay','1');}catch(e){} setDark(!dark); }}><i className={'ti '+(dark?'ti-sun':'ti-moon')}/>{dark?'Chế độ sáng':'Chế độ tối'}</button>
           <button className="tgl" onClick={()=>{if(confirm('Đăng xuất / đổi người dùng?'))setMeId(null);}}><i className="ti ti-logout"/>Đổi người dùng</button>
         </div>
       </aside>
@@ -848,7 +866,7 @@ function App(){
           {!isManager&&<button className="iconbtn" onClick={()=>setView(isCounter?'counter':'order')} title="Order chờ & yêu cầu">
             <i className="ti ti-bell"/>{(pendingCount+openAlerts)>0&&<span className="dot">{pendingCount+openAlerts}</span>}
           </button>}
-          <button className="iconbtn chi-hep" onClick={()=>setDark(!dark)} title={dark?'Chế độ sáng':'Chế độ tối'}>
+          <button className="iconbtn chi-hep" onClick={()=>{ try{localStorage.setItem('ps.darkTay','1');}catch(e){} setDark(!dark); }} title={dark?'Chế độ sáng':'Chế độ tối'}>
             <i className={'ti '+(dark?'ti-sun':'ti-moon')}/>
           </button>
           <button className="iconbtn chi-hep" onClick={()=>{if(confirm('Đăng xuất / đổi người dùng?'))setMeId(null);}} title="Đăng xuất / đổi người dùng">
@@ -3829,7 +3847,7 @@ function CustomerApp({cust,tables,menu,orders,setOrders,promos,tiers,lockers,cus
           <CloudDot status={cloud}/>
           <button className="iconbtn" onClick={()=>setView('noti')} title="Thông báo">
             <i className="ti ti-bell"/>{unread>0&&<span className="dot">{unread}</span>}</button>
-          <button className="iconbtn" onClick={()=>setDark(!dark)}><i className={'ti '+(dark?'ti-sun':'ti-moon')}/></button>
+          <button className="iconbtn" onClick={()=>{ try{localStorage.setItem('ps.darkTay','1');}catch(e){} setDark(!dark); }}><i className={'ti '+(dark?'ti-sun':'ti-moon')}/></button>
           <button className="iconbtn" onClick={onLogout} title="Đăng xuất"><i className="ti ti-logout"/></button>
         </header>
         <div className="content">
